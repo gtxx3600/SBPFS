@@ -1,15 +1,21 @@
-2009-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 Chen Yangyang <skabyy@gmail.com>
+
+    * Fix some fatal errors in ChangeLog
+    * Build a brief architecture of c_node
+    * Add some functions in package "util"
+
+2010-06-09 Han Haofu <gtxx3600@gmail.com>
 
     * Write a preform of libc.so
     * Finish sendrec_ip()
     * Modify .gitignore
 
-2009-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 Han Haofu <gtxx3600@gmail.com>
 
     * Init a brief architecture 
 
-2009-06-09 Han Haofu <gtxx3600@gmail.com>
-2009-06-09 Chen Yangyang <skabyy@gmail.com>
+2010-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 Chen Yangyang <skabyy@gmail.com>
 
-    * Begin developing "Ubuntu Easy Setuper".
+    * Begin developing "SBPFS".
 
