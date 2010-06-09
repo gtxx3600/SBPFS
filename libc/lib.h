@@ -16,3 +16,8 @@
 // along with Ailurus; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
+
+#include "const.h"
+
+
+int sendrec_ip(char* host_name,int port,char* data,int len,char** rec_buf,int * rec_len);

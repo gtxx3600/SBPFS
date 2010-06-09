@@ -16,6 +16,19 @@
 // along with Ailurus; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-#define CNODE_SERVICE_PORT = 9000
-#define DNODE_SERVICE_PORT = 9010
+#define CNODE_SERVICE_PORT  	9000
+#define DNODE_SERVICE_PORT  	9010
+#define BUF_SIZE  				4096
+#define CONTENT_LEN 			"Content-Length: "
+#define ARGC 					"Argc: "
+#define METHOD					"Method: "
+#define ARG(x)              	"Arg"##x##": "
+#define USER					"User: "
+#define PASS					"Password: "
+#define PROTOCOL				"SBPFS/1.0"
+#define REQUEST_OK				"SBPFS/1.0 OK"
+#define REQUEST_ERR				"SBPFS/1.0 ERROR"
+#define ERR_TYPE				"Error-Type: "
+#define ERR_DETAIL				"Error-Detail: "
 
+#define HEADER_FLAG				"\r\n\r\n"
