@@ -16,6 +16,9 @@
 // along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
+#ifndef __SBP_LIBC_CONST_H_
+#define __SBP_LIBC_CONST_H_
+
 #define CNODE_SERVICE_PORT  	9000
 #define DNODE_SERVICE_PORT  	9010
 #define BUF_SIZE  				4096
@@ -32,3 +35,8 @@
 #define ERR_DETAIL				"Error-Detail: "
 
 #define HEADER_FLAG				"\r\n\r\n"
+
+#define MAX_USERNAME_LEN		16
+#define MAX_PASSWORD_LEN		32
+
+#endif

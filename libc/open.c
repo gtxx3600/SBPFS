@@ -18,7 +18,7 @@
 
 #include "sbpfs.h"
 
-int sbp_open()
+ssize_t sbp_open(char* filename, size_t oflag, size_t mode)
 {
 	return 0;
 }

@@ -29,11 +29,11 @@
 #include <unistd.h>
 #define PORT 1500 /* the port client will be connecting to */
 
-int get_missing_len(char* buf);
+ssize_t get_missing_len(char* buf);
 
-int sendrec_ip(char* host_name,int port,char* data,int len,char** rec_buf,int * rec_len)
+ssize_t sendrec_ip(char* host_name,size_t port,char* data,size_t len,char** rec_buf,size_t * rec_len)
 {
-	int sockfd,numbytes,missing_bytes;
+	ssize_t sockfd,numbytes,missing_bytes;
 	char buf[BUF_SIZE+1];
 
 	struct hostent *target;
@@ -107,9 +107,9 @@ error_exit:
 	close(sockfd);
 	return -1;
 }
-int get_missing_len(char* buf)
+ssize_t get_missing_len(char* buf)
 {
-	int content_length = 0,header_length=0;
+	size_t content_length = 0,header_length=0;
 	char content_len[64];
 	char* content_len_start = NULL;
 	char* content_len_end = NULL;
