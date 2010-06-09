@@ -1,5 +1,11 @@
 2009-06-09 Han Haofu <gtxx3600@gmail.com>
 
+    * Write a preform of libc.so
+    * Finish sendrec_ip()
+    * Modify .gitignore
+
+2009-06-09 Han Haofu <gtxx3600@gmail.com>
+
     * Init a brief architecture 
 
 2009-06-09 Han Haofu <gtxx3600@gmail.com>
