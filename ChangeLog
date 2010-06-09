@@ -1,3 +1,9 @@
+2010-06-09 Han Haofu <gtxx3600@gmail.com>
+
+    * Finish sbp_login()
+    * Modify protocol
+    * Add new file
+
 2010-06-09 Chen Yangyang <skabyy@gmail.com>
 
     * Fix some fatal errors in ChangeLog
