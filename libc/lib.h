@@ -21,5 +21,25 @@
 #include "const.h"
 #include <sys/types.h>
 
-s64_t sendrec_ip(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
+s32_t sendrec_ip(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
+
+
+struct file_desc
+{
+	u16_t mode;
+	u64_t offset;
+	u64_t total_length;
+	char* filename;
+	char  identify[IDENTIFY_CODE_LEN];
+	char  owner[MAX_USERNAME_LEN+1];
+
+
+};
+/* Size of click is 16MB*/
+struct click_data{
+	u64_t id;
+	u32_t offset;
+	u32_t len;
+};
+
 #endif

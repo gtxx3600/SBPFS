@@ -17,29 +17,11 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "sbpfs.h"
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdio.h>
 
-s32_t sbp_login(char* username, char* password)
-{
-	if( strlen(username) > MAX_USERNAME_LEN || strlen(password) > MAX_PASSWORD_LEN )
-	{
-		return -1;
-	}
-	strcpy(sbp_user, username);
-	strcpy(sbp_pass, password);
+s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 	return 0;
 }
 
-s32_t sbp_getusername(char** username)
-{
-	if((*username = (char*)malloc(MAX_USERNAME_LEN + 1)) == NULL)
-	{
-		perror("sbp_getusername malloc error");
-		return -1;
-	}
-	strcpy(*username, sbp_user);
+s64_t sbp_write(s64_t fd,void* buf, u64_t len){
 	return 0;
 }

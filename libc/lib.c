@@ -27,11 +27,11 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#define PORT 1500 /* the port client will be connecting to */
+
 
 s64_t get_missing_len(char* buf);
 
-s64_t sendrec_ip(char* host_name,u64_t port,char* data,u64_t len,char** rec_buf,u64_t * rec_len)
+s32_t sendrec_ip(char* host_name,u64_t port,char* data,u64_t len,char** rec_buf,u64_t * rec_len)
 {
 	s64_t sockfd,numbytes,missing_bytes;
 	char buf[BUF_SIZE+1];
@@ -151,6 +151,7 @@ s64_t get_missing_len(char* buf)
 error_exit:
 	return -1;
 }
+
 
 void test()
 {
