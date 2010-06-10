@@ -1,3 +1,7 @@
+2010-06-10 Han Haofu <gtxx3600@gmail.com>
+
+	* Add func decode_head() and make_head()
+
 2010-06-10 Chen Yangyang <skabyy@gmail.com>
 
 	* Add some functions to handle client request
