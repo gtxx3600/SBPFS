@@ -15,12 +15,14 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Ailurus; if not, write to the Free Software Foundation, Inc.,
+# along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 import socket
 import sys
 import threading
+
+from c_node.lib import *
 
 from util.common import *
 from util.proc import *
@@ -41,7 +43,11 @@ class CtrlNode:
             else:
                 proc_rename(PROC_NAME)
             
-            self.__initailize()
+            try:
+                self.__initailize()
+            except:
+                error('Can not open server socket')
+                return
 
             self.__main()
         except:
@@ -77,45 +83,121 @@ class Connection(threading.Thread):
         
         self.conn = work[0]
         self.addr = work[1]
+        print 'Connect by %s' % self.addr[0]
         self.start()
+    
+    def __quit(self):
+        self.conn.close()
     
     def run(self):
         head, data = self.__readmsg()
 #        print 'addr: ', self.addr
 #        print head
 #        print data
+        if head == None:
+            self.__quit()
+            return
+        if not head.has_key('User'):
+            self.__senderr('NoUserError', 'No User Name')
+            self.conn.close()
+            return
         if head['User'].startswith('Client_'):
             self.__handle_client(head, data)
         elif head['User'].startswith('DNode_'):
             self.__handle_dnode(head, data)
         else:
             self.__handle_unknown(head, data)
-        self.conn.close()
+        self.__quit()
     
     def __readmsg(self):
         buffer = ''
         while not '\r\n\r\n' in buffer:
-            buffer += self.conn.recv(1024)
+            s = self.conn.recv(1024)
+            if not s:
+                return None, ''
+            buffer += s
         spl = buffer.split('\r\n\r\n', 1)
-        head = spl[0]
+        head_s = spl[0]
         if len(spl) == 1:
             data = ''
         else:
             data = spl[1]
-        d = parse_head(head)
+        d = parse_head(head_s)
+        if d == None:
+            self.__senderr('SyntaxError', 'Head error')
+            return None, ''
         if d.has_key('Content-Length'):
-            conlen = int(d['Content-Length'])
+            try:
+                conlen = int(d['Content-Length'])
+            except ValueError:
+                self.__senderr('TypeError', 'Expect Content-Length to be an integer')
+                return None, ''
             while len(data) < conlen:
-                data += self.conn.recv(1024)
+                s = self.conn.recv(1024)
+                if not s:
+                    return None, ''
+                data += s
         else:
             assert data == ''
         return d, data
     
+    def __senderr(self, type, detail):
+        statusline = 'SBPFS/1.0 ERROR'
+        d = {}
+        d['User'] = 'CNode_0'
+        d['Error-Type'] = type
+        d['Error-Detail'] = detail
+        head_s = gen_head(statusline, d)
+        try:
+            self.conn.send(head_s)
+        except:
+            pass
+    
     def __handle_client(self, head, data):
-        pass
+        def check_missing_key(key, type, detail):
+            if not head.has_key(key):
+                self.__senderr(type, detail)
+                return True
+            return False
+        
+        if check_missing_key('Method', 'NoMethodError', 'No Method'):
+            return
+        method = head['Method']
+        
+        if check_missing_key('Argc', 'NoArgcError', 'No Argc'):
+            return
+        try:
+            argc = int(head['Argc'])
+        except ValueError:
+            self.__senderr('TypeError', 'Expect Argc to be an integer')
+        
+        args = []
+        for i in range(0, argc):
+            argi = 'Arg%d' % i
+            if check_missing_key(argi, 'No%sError'%argi, 'Missing arguement %d'%i):
+                return
+            args.append(head[argi])
+        do_method = {
+                     'READ': ctrl_read,
+                     'WRITE': ctrl_write,
+                     'REMOVE': ctrl_remove,
+                     'MOVE': ctrl_move,
+                     'MKDIR': ctrl_mkdir,
+                     'RMDIR': ctrl_rmdir,
+                     'OPEN': ctrl_open,
+                     'OPENDIR': ctrl_opendir,
+                     'CHOWN': ctrl_chown,
+                     'CHMOD': ctrl_chmod,
+                     }
+        if not do_method.has_key(method):
+            self.__senderr('MethodError', 'No Such Method: %s' % method)
+        try:
+            do_method[method](self, *args)
+        except TypeError as e:
+            self.__senderr('ArguementError', '%s' % e)
     
     def __handle_dnode(self, head, data):
         pass
     
     def __handle_unknown(self, head, data):
-        pass
+        self.__senderr('UserNameError', 'Unknown user')
