@@ -29,17 +29,15 @@
 #include <unistd.h>
 #define PORT 1500 /* the port client will be connecting to */
 
-ssize_t get_missing_len(char* buf);
+s64_t get_missing_len(char* buf);
 
-ssize_t sendrec_ip(char* host_name,size_t port,char* data,size_t len,char** rec_buf,size_t * rec_len)
+s64_t sendrec_ip(char* host_name,u64_t port,char* data,u64_t len,char** rec_buf,u64_t * rec_len)
 {
-	ssize_t sockfd,numbytes,missing_bytes;
+	s64_t sockfd,numbytes,missing_bytes;
 	char buf[BUF_SIZE+1];
 
 	struct hostent *target;
 	struct sockaddr_in target_addr;
-
-
 
 	buf[BUF_SIZE] = 0;
 	target = gethostbyname(host_name);
@@ -48,7 +46,8 @@ ssize_t sendrec_ip(char* host_name,size_t port,char* data,size_t len,char** rec_
 	target_addr.sin_addr.s_addr = ((struct in_addr *)(target->h_addr))->s_addr;
 	target_addr.sin_port = htons(port);
 	bzero(&(target_addr.sin_zero), 8);
-
+	//printf("target_addr:%d\n",target_addr.sin_addr.s_addr);
+	//printf("target_port:%d\n",target_addr.sin_port);
 	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
 		printf("Socket Error, %d\n", errno);
@@ -68,37 +67,41 @@ ssize_t sendrec_ip(char* host_name,size_t port,char* data,size_t len,char** rec_
 
 	numbytes = recv(sockfd, buf, BUF_SIZE, 0);
 	if(numbytes < BUF_SIZE){
+		//printf("numbytes < BUF_SIZE\n");
 		if((*rec_buf = (char*)malloc(numbytes + 1)) == NULL){
 			printf("Socket Send Malloc Error!\n");
 			goto error_exit;
 		}
-		if(memcpy(*rec_buf,buf,numbytes) != rec_buf){
+		if(memcpy(*rec_buf,buf,numbytes) != *rec_buf){
 			printf("Socket Send Memcpy Error!\n");
 			goto error_exit;
 		}
+
 		(*rec_buf)[numbytes] = 0;
 		*rec_len = numbytes;
-		return 0;
+		goto ok_exit;
+
 	}else{
+		//printf("numbytes >= BUF_SIZE\n");
 		if((missing_bytes = get_missing_len(buf)) < 0){
-			printf("Socket Send get_missing_len Error!\n");
+			printf("Socket Send get_missing_len Error! missing_len:%lld\n",missing_bytes);
 			goto error_exit;
 		}
 		if((*rec_buf = (char*)malloc(missing_bytes + numbytes + 1)) == NULL){
 			printf("Socket Send Malloc Error!\n");
 			goto error_exit;
 		}
-		if(memcpy(*rec_buf,buf,numbytes) != rec_buf){
+		if(memcpy(*rec_buf,buf,numbytes) != *rec_buf){
 			printf("Socket Send Memcpy Error!\n");
 			goto error_exit;
 		}
 		if((numbytes = recv(sockfd, &(*rec_buf)[numbytes], missing_bytes, 0)) != missing_bytes){
-			printf("Socket Send last_recv Error!\n");
+			printf("Socket Send last_recv Error! Received bytes: %lld ; missing_bytes : %lld\n", numbytes, missing_bytes);
 			goto error_exit;
 		}
-		(*rec_buf)[missing_bytes + numbytes + 1] = 0;
-		*rec_len = missing_bytes + numbytes + 1;
-		return 0;
+		(*rec_buf)[missing_bytes + BUF_SIZE + 1] = 0;
+		*rec_len = missing_bytes + BUF_SIZE + 1;
+		goto ok_exit;
 
 	}
 
@@ -106,10 +109,14 @@ ssize_t sendrec_ip(char* host_name,size_t port,char* data,size_t len,char** rec_
 error_exit:
 	close(sockfd);
 	return -1;
+
+ok_exit:
+	close(sockfd);
+	return 0;
 }
-ssize_t get_missing_len(char* buf)
+s64_t get_missing_len(char* buf)
 {
-	size_t content_length = 0,header_length=0;
+	u64_t content_length = 0,header_length=0;
 	char content_len[64];
 	char* content_len_start = NULL;
 	char* content_len_end = NULL;
@@ -118,27 +125,33 @@ ssize_t get_missing_len(char* buf)
 		printf("Socket Send find header_flag Error!\n");
 		goto error_exit;
 	}
-	header_length = header_end - buf + sizeof(HEADER_FLAG);
+
+
+	header_length = header_end - buf + strlen(HEADER_FLAG);
+	//printf("header_start: %p ;header_end: %p ;header_len %lld ; strlen(header_flag) : %ld\n",buf,header_end,header_length,strlen(HEADER_FLAG));
 	if((content_len_start = strstr(buf,CONTENT_LEN)) == NULL){
-		printf("Socket Send Strstr Error!\n");
+		printf("Socket get_missing_len Strstr Error!\n");
 		goto error_exit;
 	}
 	if((content_len_end = strstr(content_len_start, "\r\n")) == NULL)
 	{
-		printf("Socket Send Strstr2 Error!\n");
+		printf("Socket get_missing_len Strstr2 Error!\n");
 		goto error_exit;
 	}
-	if(memcpy(content_len,content_len_start + sizeof(CONTENT_LEN),content_len_end - content_len_start) != content_len){
+	content_len_start += strlen(CONTENT_LEN) ;
+	if(memcpy(content_len, content_len_start, content_len_end - content_len_start) != content_len){
 		printf("Socket Send Memcpy2 Error!\n");
 		goto error_exit;
 	}
 	content_len[content_len_end - content_len_start] = 0;
 	content_length = atoi(content_len);
+	//printf("missing length : %lld\n",(content_length + header_length - BUF_SIZE));
 	return content_length + header_length - BUF_SIZE;
 
 error_exit:
 	return -1;
 }
+
 void test()
 {
 	printf("haha");

@@ -21,5 +21,5 @@
 #include "const.h"
 #include <sys/types.h>
 
-ssize_t sendrec_ip(char* host_name, size_t port,char* data, size_t len, char** rec_buf, size_t * rec_len);
+s64_t sendrec_ip(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
 #endif

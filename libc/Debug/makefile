@@ -22,19 +22,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: libc.so
+all: libsbp.so
 
 # Tool invocations
-libc.so: $(OBJS) $(USER_OBJS)
+libsbp.so: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -fPIC -shared -Wl,-soname=c.so -o"libc.so" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -fPIC -shared -o"libsbp.so" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C_DEPS)$(LIBRARIES) libc.so
+	-$(RM) $(OBJS)$(C_DEPS)$(LIBRARIES) libsbp.so
 	-@echo ' '
 
 .PHONY: all clean dependents

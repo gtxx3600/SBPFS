@@ -21,7 +21,7 @@
 
 #define CNODE_SERVICE_PORT  	9000
 #define DNODE_SERVICE_PORT  	9010
-#define BUF_SIZE  				4096
+#define BUF_SIZE  				8192
 #define CONTENT_LEN 			"Content-Length: "
 #define ARGC 					"Argc: "
 #define METHOD					"Method: "
@@ -38,5 +38,8 @@
 
 #define MAX_USERNAME_LEN		16
 #define MAX_PASSWORD_LEN		32
+
+typedef unsigned long long 		u64_t;
+typedef long long 				s64_t;
 
 #endif

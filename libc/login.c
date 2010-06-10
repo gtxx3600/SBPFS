@@ -19,7 +19,7 @@
 #include "sbpfs.h"
 #include <string.h>
 
-ssize_t sbp_login(char* username, char* password)
+s64_t sbp_login(char* username, char* password)
 {
 	if( strlen(username) > MAX_USERNAME_LEN || strlen(password) > MAX_PASSWORD_LEN )
 	{

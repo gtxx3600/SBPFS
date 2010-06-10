@@ -17,8 +17,25 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "sbpfs.h"
-
-ssize_t sbp_open(char* filename, size_t oflag, size_t mode)
+#include <stdio.h>
+#include <string.h>
+s64_t sbp_open(char* filename, u64_t oflag, u64_t mode)
 {
 	return 0;
+}
+
+s64_t sbp_test(char* buf, u64_t len, char* target ,u64_t port){
+	char* rec_buf;
+	u64_t rec_len;
+	int ret = 0;
+	if((ret = sendrec_ip(target, port, buf, len, &rec_buf, &rec_len)) < 0)
+	{
+		//printf("TEST Failed : %d\n ", ret);
+		perror("TEST Failed");
+		return ret;
+	}
+	printf("Received : %ld\n%s",strlen(rec_buf),rec_buf);
+	return 0;
+
+
 }
