@@ -1,3 +1,7 @@
+2010-06-09 Chen Yangyang <skabyy@gmail.com>
+
+	* Add some functions to handle client request
+
 2010-06-10 Han Haofu <gtxx3600@gmail.com>
 
     * Create data_type u64_t and s64_t

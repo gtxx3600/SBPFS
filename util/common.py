@@ -15,9 +15,13 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Ailurus; if not, write to the Free Software Foundation, Inc.,
+# along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 def warning(msg):
     import sys
     print >>sys.stdout, 'Warning: ', msg
+
+def perror(msg):
+    import sys
+    print >>sys.stderr, 'Error: ', msg
