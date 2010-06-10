@@ -41,5 +41,15 @@ struct click_data{
 	u32_t offset;
 	u32_t len;
 };
+struct head_entry{
+	char* name;
+	char* value;
+};
+struct sbpfs_head{
+	char* title;
+	int entry_num;
+	struct head_entry entrys[MAX_ENTRY_IN_HEAD];
+	char* data;
+};
 
 #endif

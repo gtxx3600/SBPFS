@@ -21,7 +21,6 @@
 #include <string.h>
 s32_t sbp_open(char* filename, u64_t oflag, u64_t mode)
 {
-
 	return 0;
 }
 s32_t sbp_opendir(char* dirname){
