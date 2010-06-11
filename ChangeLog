@@ -1,44 +1,44 @@
-2010-06-11 Chen Yangyang <skabyy@gmail.com>
+2010-06-11 CHEN Yangyang <skabyy@gmail.com>
 
     * Add some APIs of cfs(ctrl_node fs) using c
 
-2010-06-11 Han Haofu <gtxx3600@gmail.com>
+2010-06-11 HAN Haofu <gtxx3600@gmail.com>
 
     * Fix bug : about sbp_host's init
     * Create a shared lib that python could import immediately
     * Some new func
 
-2010-06-11 Han Haofu <gtxx3600@gmail.com>
+2010-06-11 HAN Haofu <gtxx3600@gmail.com>
 
     * Finish remove
     * Finish move
     * Finish chmod
     * Finish mkdir
 
-2010-06-11 Chen Yangyang <skabyy@gmail.com>
+2010-06-11 CHEN Yangyang <skabyy@gmail.com>
 
     * Add users control
 
-2010-06-11 Han Haofu <gtxx3600@gmail.com>
+2010-06-11 HAN Haofu <gtxx3600@gmail.com>
 
     * Establish sbp_err system
     * Finish chown
     * Add func free_head() and init_head()
 
-2010-06-10 Han Haofu <gtxx3600@gmail.com>
+2010-06-10 HAN Haofu <gtxx3600@gmail.com>
 
     * Add func decode_head() and make_head()
 
-2010-06-10 Chen Yangyang <skabyy@gmail.com>
+2010-06-10 CHEN Yangyang <skabyy@gmail.com>
 
     * Add some functions to handle client request
 
-2010-06-10 Han Haofu <gtxx3600@gmail.com>
+2010-06-10 HAN Haofu <gtxx3600@gmail.com>
 
     * Draft of ALL APIs
     * Some struct in libc/lib.h
 
-2010-06-10 Han Haofu <gtxx3600@gmail.com>
+2010-06-10 HAN Haofu <gtxx3600@gmail.com>
 
     * Create data_type u64_t and s64_t
     * Finish func sbp_test()
@@ -46,30 +46,30 @@
     * Put testcase in libc/Debug/test
     * Fix bugs in lib.c
 
-2010-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 HAN Haofu <gtxx3600@gmail.com>
 
     * Finish sbp_login()
     * Modify protocol
     * Add new file
 
-2010-06-09 Chen Yangyang <skabyy@gmail.com>
+2010-06-09 CHEN Yangyang <skabyy@gmail.com>
 
     * Fix some fatal errors in ChangeLog
     * Build a brief architecture of c_node
     * Add some functions in package "util"
 
-2010-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 HAN Haofu <gtxx3600@gmail.com>
 
     * Write a preform of libc.so
     * Finish sendrec_ip()
     * Modify .gitignore
 
-2010-06-09 Han Haofu <gtxx3600@gmail.com>
+2010-06-09 HAN Haofu <gtxx3600@gmail.com>
 
     * Init a brief architecture 
 
-2010-06-09 Han Haofu <gtxx3600@gmail.com>
-2010-06-09 Chen Yangyang <skabyy@gmail.com>
+2010-06-09 HAN Haofu <gtxx3600@gmail.com>
+2010-06-09 CHEN Yangyang <skabyy@gmail.com>
 
     * Begin developing "SBPFS".
 
