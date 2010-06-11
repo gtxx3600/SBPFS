@@ -19,7 +19,7 @@
 #include "global.h"
 
 
-char sbp_user[MAX_USERNAME_LEN] = "anonymous";
-char sbp_pass[MAX_PASSWORD_LEN] = "";
+char sbp_user[MAX_USERNAME_LEN + 1] = "anonymous";
+char sbp_pass[MAX_PASSWORD_LEN + 1] = "";
 
 

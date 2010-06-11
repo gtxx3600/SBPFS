@@ -4,22 +4,37 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../chmod.c \
+../chown.c \
 ../global.c \
 ../lib.c \
 ../login.c \
-../open.c 
+../move.c \
+../open.c \
+../read_write.c \
+../remove.c 
 
 OBJS += \
+./chmod.o \
+./chown.o \
 ./global.o \
 ./lib.o \
 ./login.o \
-./open.o 
+./move.o \
+./open.o \
+./read_write.o \
+./remove.o 
 
 C_DEPS += \
+./chmod.d \
+./chown.d \
 ./global.d \
 ./lib.d \
 ./login.d \
-./open.d 
+./move.d \
+./open.d \
+./read_write.d \
+./remove.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

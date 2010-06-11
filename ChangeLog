@@ -1,10 +1,15 @@
 2010-06-11 Chen Yangyang <skabyy@gmail.com>
 
-	* Add users control
+    * Add users control
 
 2010-06-10 Chen Yangyang <skabyy@gmail.com>
 
-	* Add some functions to handle client request
+    * Add some functions to handle client request
+
+2010-06-10 Han Haofu <gtxx3600@gmail.com>
+
+    * Draft of ALL APIs
+    * Some struct in libc/lib.h
 
 2010-06-10 Han Haofu <gtxx3600@gmail.com>
 

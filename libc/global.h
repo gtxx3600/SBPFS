@@ -20,7 +20,7 @@
 #define __SBP_LIBC_GLOBAL_H_
 #include "const.h"
 
-extern char sbp_user[MAX_USERNAME_LEN];
-extern char sbp_pass[MAX_PASSWORD_LEN];
+extern char sbp_user[MAX_USERNAME_LEN + 1];
+extern char sbp_pass[MAX_PASSWORD_LEN + 1];
 
 #endif /* GLOBAL_H_ */

@@ -36,8 +36,15 @@ int main(int argc,char * argv[])
 		printf("sendrec failed\n");
 	}*/
     long int rec_len;
-    sbp_test(mkdir,strlen(mkdir),host,port);
-    sbp_test(buf,strlen(buf),host,port);
+    //sbp_test(mkdir,strlen(mkdir),host,port);
+    //sbp_test(buf,strlen(buf),host,port);
+    char* username;
+    sbp_getusername(&username);
+    printf("username:%s\n",username);
+    sbp_login("haha","gaga");
+    char c = fgetc(stdin);
+    sbp_getusername(&username);
+    printf("username:%s\n",username);
     return 0;
     
 
