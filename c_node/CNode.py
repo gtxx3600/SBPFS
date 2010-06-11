@@ -34,7 +34,8 @@ from util.sbpfs import *
 HOST = ''
 CLIENT_PORT = 9000
 PASSWD = 'config/passwd'
-VDISK = 'vdisk/cnode.vd'
+DTREE = 'vdisk/dtree.vd'
+INODE = 'vdisk/inode.vd'
 
 class CtrlNode:
     def __init__(self):
@@ -63,7 +64,7 @@ class CtrlNode:
     
     def __initailize(self):
         self.__init_passwd(PASSWD)
-        self.__init_dtree(VDISK)
+        self.__init_dtree(DTREE, INODE)
         self.__init_socket()
         
     def __init_passwd(self, filename):
@@ -84,13 +85,11 @@ class CtrlNode:
         except IOError:
             perror('Can not write to configure file')
     
-    def __init_dtree(self, vdisk):
-        try:
-            with open(vdisk, 'r') as f:
-                self.dtree = DTree.load(f)
-        except IOError:
-            self.dtree = DTree()
-            warning('Can not read dtree')
+    def __init_dtree(self, dtree_vd, inode_vd):
+        self.dtree = DTree(dtree_vd, inode_vd)
+    
+    def __save_dtree(self):
+        self.dtree.close()
     
     def __init_socket(self):
         try:
@@ -111,6 +110,7 @@ class CtrlNode:
         except:
             pass
         self.__save_passwd(PASSWD)
+        self.__save_dtree()
     
     def __exit(self, ret=0):
         self.__quit()
