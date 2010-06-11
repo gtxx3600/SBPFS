@@ -12,7 +12,8 @@ C_SRCS += \
 ../move.c \
 ../open.c \
 ../read_write.c \
-../remove.c 
+../remove.c \
+../sbp_perror.c 
 
 OBJS += \
 ./chmod.o \
@@ -23,7 +24,8 @@ OBJS += \
 ./move.o \
 ./open.o \
 ./read_write.o \
-./remove.o 
+./remove.o \
+./sbp_perror.o 
 
 C_DEPS += \
 ./chmod.d \
@@ -34,7 +36,8 @@ C_DEPS += \
 ./move.d \
 ./open.d \
 ./read_write.d \
-./remove.d 
+./remove.d \
+./sbp_perror.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

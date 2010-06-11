@@ -17,9 +17,12 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "global.h"
-
+#include <stdlib.h>
 
 char sbp_user[MAX_USERNAME_LEN + 1] = "anonymous";
 char sbp_pass[MAX_PASSWORD_LEN + 1] = "";
+char sbp_host[MAX_HOSTNAME_LEN + 1] = "";
 
+char* 	sbp_err_type   = NULL;
+char*  	sbp_err_detail = NULL;
 

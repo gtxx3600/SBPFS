@@ -22,22 +22,24 @@
 #define CNODE_SERVICE_PORT  	9000
 #define DNODE_SERVICE_PORT  	9010
 #define BUF_SIZE  				8192
-#define CONTENT_LEN 			"Content-Length: "
-#define ARGC 					"Argc: "
-#define METHOD					"Method: "
-#define ARG(x)              	"Arg"##x##": "
-#define USER					"User: "
-#define PASS					"Password: "
+#define CONTENT_LEN 			"Content-Length"
+#define ARGC 					"Argc"
+#define METHOD					"Method"
+#define ARG(x)              	"Arg"##x
+#define USER					"User"
+#define PASS					"Password"
 #define PROTOCOL				"SBPFS/1.0"
 #define REQUEST_OK				"SBPFS/1.0 OK"
 #define REQUEST_ERR				"SBPFS/1.0 ERROR"
-#define ERR_TYPE				"Error-Type: "
-#define ERR_DETAIL				"Error-Detail: "
+#define ERR_TYPE				"Error-Type"
+#define ERR_DETAIL				"Error-Detail"
 
 #define HEADER_FLAG				"\r\n\r\n"
 
 #define MAX_USERNAME_LEN		16
+#define TRAN_USERNAME_LEN		16 + 7
 #define MAX_PASSWORD_LEN		32
+#define MAX_HOSTNAME_LEN		32
 #define IDENTIFY_CODE_LEN		32
 #define MAX_ENTRY_IN_HEAD		32
 
@@ -50,5 +52,6 @@ typedef unsigned int			u32_t;
 typedef int						s32_t;
 typedef unsigned short			u16_t;
 typedef short					s16_t;
-
+typedef unsigned char			u8_t;
+typedef char					s8_t;
 #endif

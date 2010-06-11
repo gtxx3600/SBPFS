@@ -1,3 +1,9 @@
+2010-06-11 Han Haofu <gtxx3600@gmail.com>
+
+    * Establish sbp_err system
+    * Finish chown
+    * Add func free_head() and init_head()
+
 2010-06-10 Han Haofu <gtxx3600@gmail.com>
 
 	* Add func decode_head() and make_head()

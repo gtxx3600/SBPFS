@@ -72,11 +72,11 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 		}
 		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
 			printf("Socket Send Memcpy Error!\n");
-			goto error_exit;
+			goto error_exit2;
 		}
 
 		(*rec_buf)[numbytes] = 0;
-		*rec_len = numbytes;
+		*rec_len = numbytes + 1;
 		goto ok_exit;
 
 	} else {
@@ -92,21 +92,21 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 		}
 		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
 			printf("Socket Send Memcpy Error!\n");
-			goto error_exit;
+			goto error_exit2;
 		}
 		if ((numbytes = recv(sockfd, &(*rec_buf)[numbytes], missing_bytes, 0))
 				!= missing_bytes) {
 			printf(
 					"Socket Send last_recv Error! Received bytes: %lld ; missing_bytes : %lld\n",
 					numbytes, missing_bytes);
-			goto error_exit;
+			goto error_exit2;
 		}
-		(*rec_buf)[missing_bytes + BUF_SIZE + 1] = 0;
+		(*rec_buf)[missing_bytes + BUF_SIZE] = 0;
 		*rec_len = missing_bytes + BUF_SIZE + 1;
 		goto ok_exit;
 
 	}
-
+	error_exit2:free(*rec_buf);
 	error_exit: close(sockfd);
 	return -1;
 
@@ -168,14 +168,14 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 	head->title = head->data;
 	if ((prev_ptr = strstr(head->data, "\r\n")) == NULL) {
 		printf("decode_head find \\r\\n Error!\n");
-		goto error_exit;
+		goto error_exit2;
 	}
 	*prev_ptr = 0;
 	prev_ptr += 2;
 	while (1) {
 		if ((next_ptr = strstr(prev_ptr, "\r\n")) == NULL) {
 			printf("decode_head find '\\r\\n' Error!\n");
-			goto error_exit;
+			goto error_exit2;
 		}
 		if (next_ptr == prev_ptr) {
 			break;
@@ -186,7 +186,7 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		next_ptr += 2;
 		if ((prev_ptr = strstr(prev_ptr, ": ")) == NULL) {
 			printf("decode_head find ': ' Error!\n");
-			goto error_exit;
+			goto error_exit2;
 		}
 		*prev_ptr = 0;
 		prev_ptr += 2;
@@ -196,6 +196,7 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 	}
 
 	return 0;
+	error_exit2: free(head->data);
 	error_exit: return -1;
 }
 s32_t make_head(char** data, int* len, struct sbpfs_head* head) {
@@ -241,6 +242,16 @@ s32_t make_head(char** data, int* len, struct sbpfs_head* head) {
 	*cp_ptr++ = '\n';
 
 	return 0;
+}
+void free_head(struct sbpfs_head* head){
+	if(head->data != NULL)
+	{
+		free(head->data);
+	}
+	bzero(head, sizeof(struct sbpfs_head));
+}
+void init_head(struct sbpfs_head* head){
+	bzero(head, sizeof(struct sbpfs_head));
 }
 void test() {
 	printf("haha");

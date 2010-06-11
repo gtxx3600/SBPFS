@@ -20,10 +20,11 @@
 #define __SBP_LIBC_SBPFS_H_
 #include "lib.h"
 #include "global.h"
+
 /* APIs */
 
 /*open.c*/
-s32_t sbp_open(char* filename, u64_t oflag, u64_t mode);
+s32_t sbp_open(char* filename, u32_t oflag, u8_t mode);
 s32_t sbp_opendir(char* dirname);
 s32_t sbp_mkdir(char* dirname);
 
@@ -39,20 +40,24 @@ s32_t sbp_remove(char* filename);
 
 
 /*chmod.c*/
-s32_t sbp_chmod(char* filename, u64_t mode);
+s32_t sbp_chmod(char* filename, u8_t mode);
 
 /*chown.c*/
-s32_t sbp_chown(char* filename, char* newowner, char* group);
+s32_t sbp_chown(char* filename, char* newowner);
 
 /*login.c*/
 s32_t sbp_login(char* username, char* password);
+
+s32_t sbp_test(char* buf, u64_t len, char* target ,u32_t port);
+
+
+
+/*TOOLS*/
+void sbp_perror(char* s);
+void sbp_seterr(char* type, char* detail);
+
+/*login.c*/
 s32_t sbp_getusername(char** username);
-
-s32_t sbp_test(char* buf, u64_t len, char* target ,u64_t port);
-
-
-
-/*Default*/
-
+s32_t sbp_getUandP(char** username,char** password);
 
 #endif

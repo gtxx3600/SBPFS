@@ -22,5 +22,9 @@
 
 extern char sbp_user[MAX_USERNAME_LEN + 1];
 extern char sbp_pass[MAX_PASSWORD_LEN + 1];
+extern char sbp_host[MAX_HOSTNAME_LEN + 1];
+
+extern char*	sbp_err_type;
+extern char*  	sbp_err_detail;
 
 #endif /* GLOBAL_H_ */

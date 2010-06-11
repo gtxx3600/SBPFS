@@ -43,3 +43,37 @@ s32_t sbp_getusername(char** username)
 	strcpy(*username, sbp_user);
 	return 0;
 }
+s32_t sbp_getpassword(char** password)
+{
+	if((*password = (char*)malloc(MAX_PASSWORD_LEN + 1)) == NULL)
+	{
+		perror("sbp_getpasswrod malloc error");
+		return -1;
+	}
+	strcpy(*password, sbp_pass);
+	return 0;
+}
+s32_t sbp_getUandP(char** username,char** password)
+{
+	if(sbp_getusername(username) == -1)
+	{
+		return -1;
+	}
+	if(sbp_getpassword(password) == -1)
+	{
+		free(*username);
+		return -1;
+	}
+	return 0;
+}
+s32_t sbp_sethost(char* hostname)
+{
+	int len = strlen(hostname);
+	if((len == 0)||(len > MAX_HOSTNAME_LEN))
+	{
+		printf("Invalid hostname\n");
+		return -1;
+	}
+	strcpy(sbp_host, hostname);
+	return 0;
+}
