@@ -20,14 +20,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-s32_t sbp_chmod(char* filename, u8_t mode){
+s32_t sbp_opendir(char* dirname){
+	return 0;
+}
+
+s32_t sbp_mkdir(char* filename){
 	struct sbpfs_head head;
 	char* usr;
 	char* pass;
 	char* data;
 	char* rec_data;
 	char tran_usr[TRAN_USERNAME_LEN];
-	char tran_mode[3];
 	u64_t rec_len = 0;
 	int data_len = 0;
 	head.data = NULL;
@@ -38,13 +41,11 @@ s32_t sbp_chmod(char* filename, u8_t mode){
 		return -1;
 	}
 	sprintf(tran_usr, "Client_%s", usr);
-	sprintf(tran_mode,"%02x",(int) mode);
 	mkent(head,USER,tran_usr);
 	mkent(head,PASS,pass);
-	mkent(head,METHOD,"CHMOD");
-	mkent(head,ARGC,"2");
+	mkent(head,METHOD,"MKDIR");
+	mkent(head,ARGC,"1");
 	mkent(head,"Arg0",filename);
-	mkent(head,"Arg1",tran_mode);
 	mkent(head,CONTENT_LEN,"0");
 
 	make_head(&data, &data_len, &head);
@@ -54,8 +55,7 @@ s32_t sbp_chmod(char* filename, u8_t mode){
 			&rec_len) != 0) {
 		goto err_exit;
 	}
-	//	printf("Return len == %lld\n",rec_len);
-	//	printf("%d\n",(int)rec_data[0]);
+
 	if (strlen(rec_data) == 0) {
 		printf("Return len == 0\n");
 		return 0;
@@ -81,3 +81,4 @@ s32_t sbp_chmod(char* filename, u8_t mode){
 	free_head(&head);
 	return 0;
 }
+
