@@ -39,7 +39,10 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 	struct sockaddr_in target_addr;
 
 	buf[BUF_SIZE] = 0;
-	target = gethostbyname(host_name);
+	if((target = gethostbyname(host_name)) == NULL){
+		perror("Unable to gethostbyname");
+		goto error_exit;
+	}
 	target_addr.sin_family = AF_INET;
 	//	target_addr.sin_addr.s_addr = htol(INADDR_ANY);
 	target_addr.sin_addr.s_addr = ((struct in_addr *) (target->h_addr))->s_addr;
@@ -53,7 +56,7 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 	}
 	if (connect(sockfd, (struct sockaddr *) &target_addr,
 			sizeof(struct sockaddr))) {
-		printf("Connect Error, %d\n", errno);
+		perror("Connect Error");
 		goto error_exit;
 	}
 

@@ -27,4 +27,6 @@ extern char sbp_host[MAX_HOSTNAME_LEN + 1];
 extern char*	sbp_err_type;
 extern char*  	sbp_err_detail;
 
+extern struct file_desc* fds[MAX_FILE_OPEN];
+
 #endif /* GLOBAL_H_ */

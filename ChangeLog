@@ -1,5 +1,11 @@
 2010-06-11 Han Haofu <gtxx3600@gmail.com>
 
+    * Fix bug : about sbp_host's init
+    * Create a shared lib that python could import immediately
+    * Some new func
+
+2010-06-11 Han Haofu <gtxx3600@gmail.com>
+
     * Finish remove
     * Finish move
     * Finish chmod

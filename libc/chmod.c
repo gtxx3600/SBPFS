@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-s32_t sbp_chmod(char* filename, u8_t mode){
+s32_t sbp_chmod(char* filename, u16_t mode){
 	struct sbpfs_head head;
 	char* usr;
 	char* pass;
@@ -50,6 +50,7 @@ s32_t sbp_chmod(char* filename, u8_t mode){
 	make_head(&data, &data_len, &head);
 	free(usr);
 	free(pass);
+
 	if (sendrec_ip(sbp_host, CNODE_SERVICE_PORT, data, data_len, &rec_data,
 			&rec_len) != 0) {
 		goto err_exit;
