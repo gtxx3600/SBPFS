@@ -21,28 +21,29 @@
 from util.common import *
 
 class UserInfo:
-    def __init__(self, uid, username, password, groupname):
+    def __init__(self, uid, username, password):
         self.uid = uid
         self.username = username
         self.password = password
-        self.groupname = groupname
-
-class GroupInfo:
-    def __init__(self, gid, groupname):
-        self.gid = gid
-        self.groupname = groupname
+    
+    def __str__(self):
+        buf = '%s:%s:%s' % (self.username, self.uid, self.password)
+        return buf
 
 USER_EXIST_EXCEPTION = 'UserExistException'
-GROUP_EXIST_EXCEPTION = 'GroupExistException'
 
 class UsersInfo:
     def __init__(self, *init_users):
         self.__users = {}
-        self.__groups = {}
         self.__ucount = 0
-        self.__gcount = 0
         for user in init_users:
             self.adduser(user)
+    
+    def __str__(self):
+        lines = []
+        for key in self.__users.keys():
+            lines.append(str(self.__users[key]))
+        return '\n'.join(lines)
     
     @classmethod
     def load(cls, lines):
@@ -51,13 +52,11 @@ class UsersInfo:
             if line.startswith('#'):
                 continue
             try:
-                un, gn, uid, gid, passwd = line.split(':')
-                users_info.__groups[gn] = GroupInfo(gid, gn)
-                users_info.__users[un] = UserInfo(uid, un, passwd, gn)
+                line = line.strip()
+                un, uid, passwd = line.split(':')
+                users_info.__users[un] = UserInfo(uid, un, passwd)
                 if users_info.__ucount < uid:
                     users_info.__ucount = uid
-                if users_info.__gcount < gid:
-                    users_info.__gcount = gid
             except:
                 Warning('Invalid line: ', line)
         return users_info
@@ -73,22 +72,11 @@ class UsersInfo:
         
         if self.has_user(user[0]):
             raise UserException(USER_EXIST_EXCEPTION)
-        if not self.has_group(user[3]):
-            self.addgroup(user[3])
         self.__users[user[0]] = UserInfo(self.__ucount, *user)
         self.__ucount += 1
     
-    def addgroup(self, groupname):
-        if self.has_group(groupname):
-            raise UserException(GROUP_EXIST_EXCEPTION)
-        self.__groups[groupname] = GroupInfo(self.__gcount, groupname)
-        self.__gcount += 1
-    
     def has_user(self, username):
         return self.__users.has_key(username)
-    
-    def has_group(self, groupname):
-        return self.__groups.has_key(groupname)
 
 class UserException(Exception):
     def __init__(self, type):

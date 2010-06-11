@@ -18,6 +18,6 @@
 
 #include "sbpfs.h"
 
-s32_t sbp_chmod(char* filename, u64_t mode){
+s32_t sbp_chmod(char* filename, u8_t mode){
 	return 0;
 }

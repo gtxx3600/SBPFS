@@ -71,9 +71,18 @@ class CtrlNode:
             with open(filename, 'r') as f:
                 lines = f.readlines()
                 self.users_info = UsersInfo.load(lines)
+                print self.users_info
         except IOError:
             self.users_info = UsersInfo()
             warning('Can not open configure file')
+    
+    def __save_passwd(self, filename):
+        try:
+            with open(filename, 'w') as f:
+                buf = str(self.users_info)
+                f.write(buf)
+        except IOError:
+            perror('Can not write to configure file')
     
     def __init_dtree(self, vdisk):
         try:
@@ -101,6 +110,7 @@ class CtrlNode:
             self.listen_to_client.close()
         except:
             pass
+        self.__save_passwd(PASSWD)
     
     def __exit(self, ret=0):
         self.__quit()
@@ -144,6 +154,7 @@ class Connection(threading.Thread):
         buffer = ''
         while not '\r\n\r\n' in buffer:
             s = self.conn.recv(1024)
+            debug(s, 1)
             if not s:
                 return None, ''
             buffer += s
@@ -168,9 +179,14 @@ class Connection(threading.Thread):
                 return None, ''
             while len(data) < conlen:
                 s = self.conn.recv(1024)
+                debug(s, 1)
                 if not s:
                     return None, ''
+                if len(data) + len(s) > conlen:
+                    offset = conlen - len(data)
+                    s = s[:offset]
                 data += s
+            debug('DATA: %s' % data, 1)
         else:
             assert data == ''
         return d, data
@@ -184,6 +200,7 @@ class Connection(threading.Thread):
         d['Error-Detail'] = detail
         head_s = gen_head(statusline, d)
         try:
+            debug(head_s, 1)
             self.conn.send(head_s)
         except:
             pass
@@ -214,6 +231,7 @@ class Connection(threading.Thread):
             args.append(head[argi])
         do_method = {
                      'READ': self.__read,
+                     'READDIR': self.__readdir,
                      'WRITE': self.__write,
                      'REMOVE': self.__remove,
                      'MOVE': self.__move,
@@ -237,23 +255,26 @@ class Connection(threading.Thread):
     def __handle_unknown(self, head, data):
         self.__senderr('UserNameError', 'Unknown user')
     
-    def __read(self, filename, offset, length):
-        debug('__reand(%s, %s, %s)' % filename, offset, length)
-    def __write(self, filename, offset, length):
-        debug('__write(%s, %s, %s)' % filename, offset, length)
+    def __read(self, fd, offset, length):
+        debug('__reand(%s, %s, %s)' % (fd, offset, length))
+    def __readdir(self, dd, en):
+        debug('__readdir(%s, %s)' % (dd, en))
+    def __write(self, fd, offset, length):
+        debug('__write(%s, %s, %s)' % (fd, offset, length))
     def __remove(self, filename):
         debug('__remove(%s)' % filename)
     def __move(self, dst, src):
-        debug('__move(%s, %s)' % dst, src)
+        debug('__move(%s, %s)' % (dst, src))
     def __mkdir(self, dirname):
         debug('__mkdir(%s)' % dirname)
     def __rmdir(self, dirname):
         debug('__rmdir(%s)' % dirname)
     def __open(self, filename, oflags, mode):
-        debug('__open(%s, %s, %s)' % filename, oflags, mode)
+        debug('__open(%s, %s, %s)' % (filename, oflags, mode))
     def __opendir(self, dirname):
         debug('__opendir(%s)' % dirname)
-    def __chown(self, filename, username, groupname):
-        debug('__chown(%s, %s, %s)' % filename, username, groupname)
+    def __chown(self, filename, username):
+        debug('__chown(%s, %s)' % (filename, username))
+#        self.conn.send('SBPFS/1.0 OK\r\n\r\n')
     def __chmod(self, filename, mode):
-        debug('__chmod(%s, %s)' % filename, mode)
+        debug('__chmod(%s, %s)' % (filename, mode))

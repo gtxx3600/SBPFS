@@ -43,6 +43,11 @@ int main(int argc,char * argv[])
     printf("username:%s\n",username);
     sbp_login("haha","gaga");
     char c = fgetc(stdin);
+    sbp_sethost("192.168.1.105");
+    int ret = sbp_chown("/haha/1.txt","gaga");
+    if(ret == -1){
+    	printf("chown failed!\n");
+    }
     sbp_getusername(&username);
     printf("username:%s\n",username);
     return 0;

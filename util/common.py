@@ -22,8 +22,11 @@ import sys
 
 dbgout = sys.stdout
 
-def debug(msg):
-    print >> dbgout, 'Debug: ', msg
+DEBUG_LEVEL = 1
+
+def debug(msg, level = 0):
+    if level <= DEBUG_LEVEL:
+        print >> dbgout, 'Debug: ', msg
 
 def warning(msg):
     print >> sys.stderr, 'Warning: ', msg

@@ -20,10 +20,14 @@
 #define __SBP_LIBC_LIB_H_
 #include "const.h"
 #include <sys/types.h>
+struct sbpfs_head;
+
 
 s32_t sendrec_ip(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
-
-
+s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head);
+s32_t make_head(char** data, int* len, struct sbpfs_head* head);
+void  free_head(struct sbpfs_head* head);
+void  init_head(struct sbpfs_head* head);
 struct file_desc
 {
 	u16_t mode;
@@ -40,6 +44,19 @@ struct click_data{
 	u64_t id;
 	u32_t offset;
 	u32_t len;
+};
+struct head_entry{
+	char* name;
+	char* value;
+};
+#define mkent(head,n,val)  head.entrys[head.entry_num].name = n;\
+	head.entrys[head.entry_num++].value = val;
+#define mkusr(usr)	"Client_"##usr
+struct sbpfs_head{
+	char* title;
+	int entry_num;
+	struct head_entry entrys[MAX_ENTRY_IN_HEAD];
+	char* data;
 };
 
 #endif

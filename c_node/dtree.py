@@ -19,8 +19,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 class DTree:
-    def __init__(self):
-        pass
+    def __init__(self, bs=''):
+        self.bs = bs
     
     def load(self, f):
-        return DTree()
+        buf = ''
+        while True:
+            s = f.read()
+            if not s:
+                break
+            buf += s
+        dtree = DTree(buf)
+        return dtree
