@@ -21,16 +21,25 @@
 #include "lib.h"
 #include "global.h"
 
+/* MODE */
+
+#define S_ORD		0x01
+#define S_OWR		0x02
+#define S_IRD 		0x04
+#define S_IWR		0x08
+
+/* OFLAG */
+
 /* APIs */
 
 /*open.c*/
-s32_t sbp_open(char* filename, u32_t oflag, u8_t mode);
-s32_t sbp_opendir(char* dirname);
-s32_t sbp_mkdir(char* dirname);
+s32_t sbp_open(char* filename, u32_t oflag, u8_t mode);//TODO
+s32_t sbp_opendir(char* dirname);//TODO
+s32_t sbp_mkdir(char* dirname);//TODO
 
 /*read_write.c*/
-s64_t sbp_read(s64_t fd, void* buf, u64_t len);
-s64_t sbp_write(s64_t fd,void* buf, u64_t len);
+s64_t sbp_read(s64_t fd, void* buf, u64_t len);//TODO
+s64_t sbp_write(s64_t fd,void* buf, u64_t len);//TODO
 
 /*move.c*/
 s32_t sbp_move(char* dst, char* src);
@@ -41,6 +50,8 @@ s32_t sbp_remove(char* filename);
 
 /*chmod.c*/
 s32_t sbp_chmod(char* filename, u8_t mode);
+
+
 
 /*chown.c*/
 s32_t sbp_chown(char* filename, char* newowner);
@@ -55,7 +66,7 @@ s32_t sbp_test(char* buf, u64_t len, char* target ,u32_t port);
 /*TOOLS*/
 void sbp_perror(char* s);
 void sbp_seterr(char* type, char* detail);
-
+void sbp_update_err(struct sbpfs_head* head);
 /*login.c*/
 s32_t sbp_getusername(char** username);
 s32_t sbp_getUandP(char** username,char** password);

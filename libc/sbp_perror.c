@@ -47,6 +47,24 @@ void sbp_seterr(char* type, char* detail){
 
 
 }
+void sbp_update_err(struct sbpfs_head* head){
+	char* type = NULL;
+	char* detail = NULL;
+	int i;
+	for(i = 0; i < head->entry_num ; i++)
+	{
+		if(strcmp(head->entrys[i].name,ERR_TYPE) == 0){
+			type = head->entrys[i].value;
+		}else if(strcmp(head->entrys[i].name,ERR_DETAIL) == 0){
+			detail = head->entrys[i].value;
+		}
+		if(type&&detail)
+		{
+			sbp_seterr(type,detail);
+			return;
+		}
+	}
+}
 static void free_err()
 {
 	if(!(sbp_err_type == NULL))
