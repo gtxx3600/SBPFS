@@ -26,9 +26,7 @@ s32_t sbp_open(char* filename, u32_t oflag, u8_t mode)
 s32_t sbp_opendir(char* dirname){
 	return 0;
 }
-s32_t sbp_mkdir(char* dirname){
-	return 0;
-}
+
 s32_t sbp_test(char* buf, u64_t len, char* target ,u32_t port){
 	char* rec_buf;
 	u64_t rec_len;

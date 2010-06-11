@@ -6,6 +6,7 @@
 C_SRCS += \
 ../chmod.c \
 ../chown.c \
+../dir.c \
 ../global.c \
 ../lib.c \
 ../login.c \
@@ -18,6 +19,7 @@ C_SRCS += \
 OBJS += \
 ./chmod.o \
 ./chown.o \
+./dir.o \
 ./global.o \
 ./lib.o \
 ./login.o \
@@ -30,6 +32,7 @@ OBJS += \
 C_DEPS += \
 ./chmod.d \
 ./chown.d \
+./dir.d \
 ./global.d \
 ./lib.d \
 ./login.d \
