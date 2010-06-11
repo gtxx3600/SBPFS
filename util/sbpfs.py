@@ -18,15 +18,4 @@
 # along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-import sys
-
-dbgout = sys.stdout
-
-def debug(msg):
-    print >> dbgout, 'Debug: ', msg
-
-def warning(msg):
-    print >> sys.stderr, 'Warning: ', msg
-
-def perror(msg):
-    print >> sys.stderr, 'Error: ', msg
+VERSION = 'SBPFS/1.0'

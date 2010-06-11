@@ -23,13 +23,18 @@ import sys
 import threading
 
 from c_node.lib import *
+from c_node.user import *
+from c_node.dtree import *
 
 from util.common import *
 from util.proc import *
 from util.parse import *
+from util.sbpfs import *
 
 HOST = ''
 CLIENT_PORT = 9000
+PASSWD = 'config/passwd'
+VDISK = 'vdisk/cnode.vd'
 
 class CtrlNode:
     def __init__(self):
@@ -43,11 +48,7 @@ class CtrlNode:
             else:
                 proc_rename(PROC_NAME)
             
-            try:
-                self.__initailize()
-            except:
-                error('Can not open server socket')
-                return
+            self.__initailize()
 
             self.__main()
         except:
@@ -61,10 +62,36 @@ class CtrlNode:
             Connection(work)
     
     def __initailize(self):
-        self.listen_to_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.listen_to_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.listen_to_client.bind((HOST, CLIENT_PORT))
-        self.listen_to_client.listen(10)
+        self.__init_passwd(PASSWD)
+        self.__init_dtree(VDISK)
+        self.__init_socket()
+        
+    def __init_passwd(self, filename):
+        try:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+                self.users_info = UsersInfo.load(lines)
+        except IOError:
+            self.users_info = UsersInfo()
+            warning('Can not open configure file')
+    
+    def __init_dtree(self, vdisk):
+        try:
+            with open(vdisk, 'r') as f:
+                self.dtree = DTree.load(f)
+        except IOError:
+            self.dtree = DTree()
+            warning('Can not read dtree')
+    
+    def __init_socket(self):
+        try:
+            self.listen_to_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.listen_to_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.listen_to_client.bind((HOST, CLIENT_PORT))
+            self.listen_to_client.listen(10)
+        except:
+            perror('Can not open server socket')
+            self.__exit(-1)
     
     def __getWork(self):
         return self.listen_to_client.accept()
@@ -74,6 +101,10 @@ class CtrlNode:
             self.listen_to_client.close()
         except:
             pass
+    
+    def __exit(self, ret=0):
+        self.__quit()
+        sys.exit(ret)
 
 class Connection(threading.Thread):
     def __init__(self, work):
@@ -83,7 +114,7 @@ class Connection(threading.Thread):
         
         self.conn = work[0]
         self.addr = work[1]
-        print 'Connect by %s' % self.addr[0]
+        debug('Connect by %s' % self.addr[0])
         self.start()
     
     def __quit(self):
@@ -126,6 +157,9 @@ class Connection(threading.Thread):
         if d == None:
             self.__senderr('SyntaxError', 'Head error')
             return None, ''
+        if d['Protocol'] != VERSION:
+            self.__senderr('ProtocolError', 'Unknown Protocal: %s' % d['Protocol'])
+            return None, ''
         if d.has_key('Content-Length'):
             try:
                 conlen = int(d['Content-Length'])
@@ -145,6 +179,7 @@ class Connection(threading.Thread):
         statusline = 'SBPFS/1.0 ERROR'
         d = {}
         d['User'] = 'CNode_0'
+        d['Content-Length'] = 0
         d['Error-Type'] = type
         d['Error-Detail'] = detail
         head_s = gen_head(statusline, d)
@@ -178,21 +213,21 @@ class Connection(threading.Thread):
                 return
             args.append(head[argi])
         do_method = {
-                     'READ': ctrl_read,
-                     'WRITE': ctrl_write,
-                     'REMOVE': ctrl_remove,
-                     'MOVE': ctrl_move,
-                     'MKDIR': ctrl_mkdir,
-                     'RMDIR': ctrl_rmdir,
-                     'OPEN': ctrl_open,
-                     'OPENDIR': ctrl_opendir,
-                     'CHOWN': ctrl_chown,
-                     'CHMOD': ctrl_chmod,
+                     'READ': self.__read,
+                     'WRITE': self.__write,
+                     'REMOVE': self.__remove,
+                     'MOVE': self.__move,
+                     'MKDIR': self.__mkdir,
+                     'RMDIR': self.__rmdir,
+                     'OPEN': self.__open,
+                     'OPENDIR': self.__opendir,
+                     'CHOWN': self.__chown,
+                     'CHMOD': self.__chmod,
                      }
         if not do_method.has_key(method):
             self.__senderr('MethodError', 'No Such Method: %s' % method)
         try:
-            do_method[method](self, *args)
+            do_method[method](*args)
         except TypeError as e:
             self.__senderr('ArguementError', '%s' % e)
     
@@ -201,3 +236,24 @@ class Connection(threading.Thread):
     
     def __handle_unknown(self, head, data):
         self.__senderr('UserNameError', 'Unknown user')
+    
+    def __read(self, filename, offset, length):
+        debug('__reand(%s, %s, %s)' % filename, offset, length)
+    def __write(self, filename, offset, length):
+        debug('__write(%s, %s, %s)' % filename, offset, length)
+    def __remove(self, filename):
+        debug('__remove(%s)' % filename)
+    def __move(self, dst, src):
+        debug('__move(%s, %s)' % dst, src)
+    def __mkdir(self, dirname):
+        debug('__mkdir(%s)' % dirname)
+    def __rmdir(self, dirname):
+        debug('__rmdir(%s)' % dirname)
+    def __open(self, filename, oflags, mode):
+        debug('__open(%s, %s, %s)' % filename, oflags, mode)
+    def __opendir(self, dirname):
+        debug('__opendir(%s)' % dirname)
+    def __chown(self, filename, username, groupname):
+        debug('__chown(%s, %s, %s)' % filename, username, groupname)
+    def __chmod(self, filename, mode):
+        debug('__chmod(%s, %s)' % filename, mode)
