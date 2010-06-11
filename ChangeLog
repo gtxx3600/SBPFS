@@ -1,3 +1,7 @@
+2010-06-11 Chen Yangyang <skabyy@gmail.com>
+
+    * Add some APIs of cfs(ctrl_node fs) using c
+
 2010-06-11 Han Haofu <gtxx3600@gmail.com>
 
     * Finish remove
