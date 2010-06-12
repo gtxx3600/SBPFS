@@ -108,7 +108,6 @@ s32_t sbp_close(u32_t fd) {
 	mkent(head,CONTENT_LEN,"0");
 
 	SBP_SEND_AND_PROCESS_REPLY
-
 	SBP_PROCESS_RESULT
 
 	err_exit3: free_head(&head);
