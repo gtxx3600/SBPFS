@@ -37,6 +37,7 @@ struct sbp_filedesc
 	u64_t server_fd;
 	u32_t oflag;
 	u64_t offset;
+	u8_t  type;
 	char* filename;
 	char  auth_code[AUTH_CODE_LEN+1];
 
@@ -80,6 +81,67 @@ struct sbpfs_head{
 	struct head_entry entrys[MAX_ENTRY_IN_HEAD];
 	char* data;
 };
+#define SBP_PREPARE_REQUEST 	\
+struct sbpfs_head head;\
+char* usr;\
+char* pass;\
+char* data;\
+char* rec_data;\
+char tran_usr[TRAN_USERNAME_LEN];\
+u64_t rec_len = 0;\
+int data_len = 0;\
+head.data = NULL;\
+head.title = PROTOCOL;\
+head.entry_num = 0;\
+if (sbp_getUandP(&usr, &pass) == -1) {\
+	printf("Can not get username and password\n");\
+	return -1;\
+}\
+sprintf(tran_usr, "Client_%s", usr);\
+mkent(head,USER,tran_usr);\
+mkent(head,PASS,pass);
+
+#define SBP_SEND_AND_PROCESS_REPLY	\
+if (make_head(&data, &data_len, &head) == -1) {\
+seterr(HEAD_ERR,MAKE_HEAD);\
+goto err_exit;\
+}/*data need free*/\
+if (sendrec_hostname(sbp_host, CNODE_SERVICE_PORT, data, data_len,\
+	&rec_data, &rec_len) != 0) {\
+goto err_exit1;\
+}/*rec_data need free*/\
+if (strlen(rec_data) == 0) {\
+seterr(SOCKET_ERR,RECV);\
+goto err_exit2;\
+}\
+if (decode_head(rec_data, rec_len, &head) == -1) {\
+seterr("Data Error", "Can not decode SBPFS_HEAD");\
+goto err_exit2;\
+}/*head need free*/
+#define SBP_PROCESS_RESULT \
+if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {\
+	goto ok_exit;\
+} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {\
+	sbp_update_err(&head);\
+	goto err_exit3;\
+} else {\
+	seterr(HEAD_ERR, UNKNOWN_HEAD);\
+}
+
+#define SBP_PROCESS_ERR \
+err_exit3: free_head(&head);\
+err_exit2: free(rec_data);\
+err_exit1: free(data);\
+err_exit: free(usr);\
+free(pass);\
+return -1;\
+ok_exit: free(data);\
+free(rec_data);\
+free_head(&head);\
+free(usr);\
+free(pass);\
+return 0;\
+
 
 
 #endif

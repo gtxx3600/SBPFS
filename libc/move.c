@@ -21,62 +21,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-s32_t sbp_move(char* dst, char* src){
-	struct sbpfs_head head;
-	char* usr;
-	char* pass;
-	char* data;
-	char* rec_data;
-	char tran_usr[TRAN_USERNAME_LEN];
-	u64_t rec_len = 0;
-	int data_len = 0;
-	head.data = NULL;
-	head.title = PROTOCOL;
-	head.entry_num = 0;
-	if (sbp_getUandP(&usr, &pass) == -1) {
-		printf("Can not get username and password\n");
-		return -1;
-	}
-	sprintf(tran_usr, "Client_%s", usr);
+s32_t sbp_move(char* dst, char* src) {
 
-	mkent(head,USER,tran_usr);
-	mkent(head,PASS,pass);
+	SBP_PREPARE_REQUEST
+
 	mkent(head,METHOD,"MOVE");
 	mkent(head,ARGC,"2");
 	mkent(head,"Arg0",dst);
 	mkent(head,"Arg1",src);
 	mkent(head,CONTENT_LEN,"0");
 
-	make_head(&data, &data_len, &head);
-	free(usr);
-	free(pass);
-	if (sendrec_hostname(sbp_host, CNODE_SERVICE_PORT, data, data_len, &rec_data,
-			&rec_len) != 0) {
-		goto err_exit;
-	}
-
-	if (strlen(rec_data) == 0) {
-		printf("Return len == 0\n");
-		return 0;
-	}
-	if (decode_head(rec_data, rec_len, &head) == -1) {
-		seterr("Data Error", "Can not decode SBPFS_HEAD");
-		goto err_exit2;
-	}
-	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
-		goto ok_exit;
-	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
-		sbp_update_err(&head);
-		goto err_exit3;
-	} else {
-
-	}
-	err_exit3: free_head(&head);
-	err_exit2: free(data);
-	free(rec_data);
-	err_exit: return -1;
-	ok_exit: free(data);
-	free(rec_data);
-	free_head(&head);
-	return 0;
+	SBP_SEND_AND_PROCESS_REPLY
+	SBP_PROCESS_RESULT
+	SBP_PROCESS_ERR
 }

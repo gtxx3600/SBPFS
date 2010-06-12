@@ -37,11 +37,14 @@
 #define O_CREAT		0x08
 #define O_APPEND	0x10
 
+/* TYPE */
+#define T_DIR		0x01
+#define T_FILE		0x02
 /* APIs */
 
 /* open.c */
 s32_t sbp_open(char* filename, u32_t oflag, u16_t mode);
-void sbp_close(u32_t fd);
+s32_t sbp_close(u32_t fd);
 /* dir.c */
 s32_t sbp_opendir(char* dirname);//TODO
 s32_t sbp_mkdir(char* dirname);//TODO
