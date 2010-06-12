@@ -150,7 +150,7 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 	path[last] = 0;
 	dirname = &path[last+1];
 
-	printf("name=%s\n", dirname);
+//	printf("name=%s\n", dirname);
 	ret = c_lookup(dt, path, uid, &parent);
 //	printf("here: %x\n", parent.name);
 	if (ret)
@@ -256,7 +256,7 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 
 	ep = buf + sizeof(file_meta_t);
 
-	do_readdir(dt, base->fb, ep);
+	do_readdir(dt, base->fb, buf);
 
 	for (cp = path; *cp != 0; cp++) {
 		if (*cp == '/') {
@@ -266,14 +266,18 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 		}
 	}
 
+//	printf("next_base: %s\n", next_base);
 	for (p = ep; (u64_t)(long)p != (u64_t)(long)ep + meta.strbase; p++) {
 		char *s = (char *)((char *)ep + meta.strbase + p->name);
-		if (!strcpy(s, next_base))
+//		printf("filename: %s\n", s);
+		if (!strcmp(s, next_base))
 			break;
 	}
-	if ((u64_t)(long)p != (u64_t)(long)ep + meta.strbase) {
+	if ((u64_t)(long)p == (u64_t)(long)ep + meta.strbase) {
+//		printf("fail\n");
 		return 1;
 	}
+//	printf("success\n");
 
 	if (next_base == path) {
 		memcpy(ret, p, sizeof(file_entry_t));
@@ -289,6 +293,9 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 static int c_lookup(dtree_t *dt, char *path, u32_t uid, file_entry_t *ret)
 {
 	file_entry_t root_entry;
+	if (path[0] == '/') {
+		path++;
+	}
 	if (!path[0]) {
 		memcpy(ret, dt->data, sizeof(file_entry_t));
 		return 0;
