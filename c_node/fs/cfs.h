@@ -23,7 +23,9 @@
 
 #define MAX_FSNAME 16
 
-#define S_DIR 0x10
+#define S_DIR 0x1
+#define S_FIL 0x0
+
 #define S_IRD 0x8
 #define S_IWR 0x4
 #define S_ORD 0x2
@@ -32,19 +34,27 @@
 #define S_IRW S_IRD|S_IWR
 #define S_ORW S_ORD|S_IWR
 
+#define INITMODE S_IRW|S_ORD
+
+#define CFSNAME "cfs"
+#define BYTSPERSEC 512
+
+#define FREESEC 0
+#define ENDSEC ~0UL
+
 typedef struct sb {
 	char fstype[MAX_FSNAME];
 	u32_t bytsPerSec;
 	u32_t totSecNum;
 	u32_t fatSecNum;
+	u32_t fatNum;
 } sb_t;
 
 typedef struct file_entry {
 	u64_t name;
-	u32_t uid;
-	u16_t flags;
 	u32_t fb;
-	u64_t flen;
+	u8_t type;
+	u8_t reserve[3];
 } file_entry_t;
 
 typedef u32_t  fat_t;
@@ -61,9 +71,24 @@ typedef struct dtree {
 	void *in_buf;
 } dtree_t;
 
+typedef struct file_meta {
+	u32_t uid;
+	u64_t flen;
+	u64_t c_time;
+	u64_t r_time;
+	u64_t w_time;
+	u32_t count;
+	u32_t strlen;
+	u8_t flags;
+	u8_t reserve[19];
+} file_meta_t;
+
+typedef struct file_struct {
+	file_meta_t meta;
+} file_struct_t;
+
 dtree_t *open_disk(char *dt_name, char *in_name);
 int save_disk(dtree_t *dt, char *dt_name, char *in_name);
 void close_disk(dtree_t *p);
-void mkcfs(void *buf, unsigned int size, unsigned int bytsPerSec);
 
 #endif
