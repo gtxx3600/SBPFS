@@ -17,6 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "sbpfs.h"
+#include "lib.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,7 +48,7 @@ s32_t sbp_remove(char* filename){
 	make_head(&data, &data_len, &head);
 	free(usr);
 	free(pass);
-	if (sendrec_ip(sbp_host, CNODE_SERVICE_PORT, data, data_len, &rec_data,
+	if (sendrec_hostname(sbp_host, CNODE_SERVICE_PORT, data, data_len, &rec_data,
 			&rec_len) != 0) {
 		goto err_exit;
 	}
@@ -58,7 +59,7 @@ s32_t sbp_remove(char* filename){
 		return 0;
 	}
 	if (decode_head(rec_data, rec_len, &head) == -1) {
-		sbp_seterr("Data Error", "Can not decode SBPFS_HEAD");
+		seterr("Data Error", "Can not decode SBPFS_HEAD");
 		goto err_exit2;
 	}
 	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {

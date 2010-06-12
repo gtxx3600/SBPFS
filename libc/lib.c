@@ -18,6 +18,7 @@
 
 
 #include "lib.h"
+#include "error.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -29,52 +30,30 @@
 #include <unistd.h>
 
 s64_t get_missing_len(char* buf);
-
-s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
-		char** rec_buf, u64_t * rec_len) {
-	s64_t sockfd, numbytes, missing_bytes;
-	char buf[BUF_SIZE + 1];
-
-	struct hostent *target;
-	struct sockaddr_in target_addr;
-
-	buf[BUF_SIZE] = 0;
-	if((target = gethostbyname(host_name)) == NULL){
-		perror("Unable to gethostbyname");
-		goto error_exit;
-	}
-	target_addr.sin_family = AF_INET;
-	//	target_addr.sin_addr.s_addr = htol(INADDR_ANY);
-	target_addr.sin_addr.s_addr = ((struct in_addr *) (target->h_addr))->s_addr;
-	target_addr.sin_port = htons(port);
-	bzero(&(target_addr.sin_zero), 8);
-	//printf("target_addr:%d\n",target_addr.sin_addr.s_addr);
-	//printf("target_port:%d\n",target_addr.sin_port);
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("Socket Error, %d\n", errno);
-		goto error_exit;
-	}
-	if (connect(sockfd, (struct sockaddr *) &target_addr,
-			sizeof(struct sockaddr))) {
-		perror("Connect Error");
-		goto error_exit;
-	}
-
+s32_t sbp_send(s64_t sockfd, char* data, u64_t len)
+{
+	u64_t numbytes;
 	numbytes = send(sockfd, data, len, 0);
 	if (numbytes != len) {
-		printf("Socket Send Length Error!\n");
-		goto error_exit;
+		seterr(SOCKET_ERR, DATA_LEN);
+		return -1;
 	}
-
+	return 0;
+}
+s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
+{
+	u64_t missing_bytes,numbytes;
+	char buf[BUF_SIZE + 1];
+	buf[BUF_SIZE] = 0;
 	numbytes = recv(sockfd, buf, BUF_SIZE, 0);
 	if (numbytes < BUF_SIZE) {
 		//printf("numbytes < BUF_SIZE\n");
 		if ((*rec_buf = (char*) malloc(numbytes + 1)) == NULL) {
-			printf("Socket Send Malloc Error!\n");
+			seterr(MEM_ERR, MALLOC);
 			goto error_exit;
 		}
 		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
-			printf("Socket Send Memcpy Error!\n");
+			seterr(MEM_ERR, MEMCPY);
 			goto error_exit2;
 		}
 
@@ -85,23 +64,20 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 	} else {
 		//printf("numbytes >= BUF_SIZE\n");
 		if ((missing_bytes = get_missing_len(buf)) < 0) {
-			printf("Socket Send get_missing_len Error! missing_len:%lld\n",
-					missing_bytes);
+			seterr(SOCKET_ERR,MISSING_LEN);
 			goto error_exit;
 		}
 		if ((*rec_buf = (char*) malloc(missing_bytes + numbytes + 1)) == NULL) {
-			printf("Socket Send Malloc Error!\n");
+			seterr(MEM_ERR, MALLOC);
 			goto error_exit;
 		}
 		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
-			printf("Socket Send Memcpy Error!\n");
+			seterr(MEM_ERR, MEMCPY);
 			goto error_exit2;
 		}
 		if ((numbytes = recv(sockfd, &(*rec_buf)[numbytes], missing_bytes, 0))
 				!= missing_bytes) {
-			printf(
-					"Socket Send last_recv Error! Received bytes: %lld ; missing_bytes : %lld\n",
-					numbytes, missing_bytes);
+			seterr(SOCKET_ERR,RECV);
 			goto error_exit2;
 		}
 		(*rec_buf)[missing_bytes + BUF_SIZE] = 0;
@@ -116,6 +92,57 @@ s32_t sendrec_ip(char* host_name, u64_t port, char* data, u64_t len,
 	ok_exit: close(sockfd);
 	return 0;
 }
+s64_t sbp_connect(char* host_name, u64_t port)
+{
+	s64_t sockfd;
+
+	struct hostent *target;
+	struct sockaddr_in target_addr;
+
+	if((target = gethostbyname(host_name)) == NULL){
+		seterr(MEM_ERR,GET_HOSTNAME);
+		goto error_exit;
+	}
+	target_addr.sin_family = AF_INET;
+	target_addr.sin_addr.s_addr = ((struct in_addr *) (target->h_addr))->s_addr;
+	target_addr.sin_port = htons(port);
+	bzero(&(target_addr.sin_zero), 8);
+
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		seterr(SOCKET_ERR, INIT_SOCK);
+		goto error_exit;
+	}
+	if (connect(sockfd, (struct sockaddr *) &target_addr,
+			sizeof(struct sockaddr))) {
+		seterr(SOCKET_ERR, CONNECT);
+		goto error_exit;
+	}
+	return sockfd;
+error_exit:
+	close(sockfd);
+	return -1;
+
+}
+s32_t sendrec_hostname(char* host_name, u64_t port, char* data, u64_t len,
+		char** rec_buf, u64_t * rec_len) {
+
+	s64_t sockfd;
+	if((sockfd = sbp_connect(host_name, port)) < 0){
+		seterr(SOCKET_ERR, EST_SOCK);
+		return -1;
+	}
+
+	if(sbp_send(sockfd, data, len) < 0){
+		seterr(SOCKET_ERR, SEND);
+		return -1;
+	}
+
+	if((sbp_recv(sockfd, rec_buf, rec_len))< 0){
+		seterr(SOCKET_ERR, RECV);
+		return -1;
+	}
+	return 0;
+}
 s64_t get_missing_len(char* buf) {
 	u64_t content_length = 0, header_length = 0;
 	char content_len[64];
@@ -123,24 +150,24 @@ s64_t get_missing_len(char* buf) {
 	char* content_len_end = NULL;
 	char* header_end;
 	if ((header_end = strstr(buf, HEADER_FLAG)) == NULL) {
-		printf("Socket Send find header_flag Error!\n");
+		seterr(SBPFS_HEAD_ERR, HEAD_FLAG);
 		goto error_exit;
 	}
 
 	header_length = header_end - buf + strlen(HEADER_FLAG);
 	//printf("header_start: %p ;header_end: %p ;header_len %lld ; strlen(header_flag) : %ld\n",buf,header_end,header_length,strlen(HEADER_FLAG));
 	if ((content_len_start = strstr(buf, CONTENT_LEN)) == NULL) {
-		printf("Socket get_missing_len Strstr Error!\n");
+		seterr(SBPFS_HEAD_ERR, CONTENT_LEN);
 		goto error_exit;
 	}
 	if ((content_len_end = strstr(content_len_start, "\r\n")) == NULL) {
-		printf("Socket get_missing_len Strstr2 Error!\n");
+		seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit;
 	}
 	content_len_start += strlen(CONTENT_LEN);
 	if (memcpy(content_len, content_len_start, content_len_end
 			- content_len_start) != content_len) {
-		printf("Socket Send Memcpy2 Error!\n");
+		seterr(MEM_ERR, MEMCPY);
 		goto error_exit;
 	}
 	content_len[content_len_end - content_len_start] = 0;
@@ -158,26 +185,26 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 	u64_t header_len;
 	int i = 0;
 	if ((header_end = strstr(data, HEADER_FLAG)) == NULL) {
-		printf("decode_head find header_flag Error!\n");
+		seterr(SBPFS_HEAD_ERR, HEAD_FLAG);
 		goto error_exit;
 	}
 	header_len = header_end - data + strlen(HEADER_FLAG);
 	if ((head->data = malloc(header_len + 1)) == NULL) {
-		perror("decode_head malloc error");
+		seterr(MEM_ERR, MALLOC);
 		goto error_exit;
 	}
 	head->data[header_len] = 0;
 	memcpy(head->data, data, header_len);
 	head->title = head->data;
 	if ((prev_ptr = strstr(head->data, "\r\n")) == NULL) {
-		printf("decode_head find \\r\\n Error!\n");
+		seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit2;
 	}
 	*prev_ptr = 0;
 	prev_ptr += 2;
 	while (1) {
 		if ((next_ptr = strstr(prev_ptr, "\r\n")) == NULL) {
-			printf("decode_head find '\\r\\n' Error!\n");
+			seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
 			goto error_exit2;
 		}
 		if (next_ptr == prev_ptr) {
@@ -188,7 +215,7 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		*next_ptr = 0;
 		next_ptr += 2;
 		if ((prev_ptr = strstr(prev_ptr, ": ")) == NULL) {
-			printf("decode_head find ': ' Error!\n");
+			seterr(SBPFS_HEAD_ERR, COLON);
 			goto error_exit2;
 		}
 		*prev_ptr = 0;
@@ -207,7 +234,7 @@ s32_t make_head(char** data, int* len, struct sbpfs_head* head) {
 	u64_t total_len = 0;
 	char* cp_ptr;
 	if (head->entry_num > MAX_ENTRY_IN_HEAD){
-		printf("entry_num too much\n");
+		seterr(SBPFS_HEAD_ERR,TOO_MANY_ENTRY);
 		return -1;
 	}
 	total_len += strlen(head->title) + 2;
@@ -220,7 +247,7 @@ s32_t make_head(char** data, int* len, struct sbpfs_head* head) {
 	*len = total_len;
 	if((*data = malloc(total_len)) == NULL)
 	{
-		perror("make_head malloc error");
+		seterr(MEM_ERR, MALLOC);
 		return -1;
 	}
 	cp_ptr = *data;

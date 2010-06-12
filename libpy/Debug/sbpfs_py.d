@@ -31,8 +31,8 @@ sbpfs_py.d sbpfs_py.o: ../sbpfs_py.c /usr/include/python2.6/Python.h \
  /usr/include/python2.6/code.h /usr/include/python2.6/eval.h \
  /usr/include/python2.6/pystrtod.h /usr/include/python2.6/pystrcmp.h \
  /usr/include/python2.6/pyfpe.h /home/hhf/SBPFS/libc/sbpfs.h \
- /home/hhf/SBPFS/libc/lib.h /home/hhf/SBPFS/libc/const.h \
- /home/hhf/SBPFS/libc/global.h
+ /home/hhf/SBPFS/libc/global.h /home/hhf/SBPFS/libc/const.h \
+ /home/hhf/SBPFS/libc/error.h /home/hhf/SBPFS/libc/lib.h
 
 /usr/include/python2.6/Python.h:
 
@@ -150,8 +150,10 @@ sbpfs_py.d sbpfs_py.o: ../sbpfs_py.c /usr/include/python2.6/Python.h \
 
 /home/hhf/SBPFS/libc/sbpfs.h:
 
-/home/hhf/SBPFS/libc/lib.h:
+/home/hhf/SBPFS/libc/global.h:
 
 /home/hhf/SBPFS/libc/const.h:
 
-/home/hhf/SBPFS/libc/global.h:
+/home/hhf/SBPFS/libc/error.h:
+
+/home/hhf/SBPFS/libc/lib.h:

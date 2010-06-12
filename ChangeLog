@@ -1,3 +1,8 @@
+2010-06-12 HAN Haofu <gtxx3600@gmail.com>
+
+    * Implement an advanced error trace system
+    * Draft file desc and dir entry
+
 2010-06-11 CHEN Yangyang <skabyy@gmail.com>
 
     * Add some APIs of cfs(ctrl_node fs) using c

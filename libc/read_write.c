@@ -17,7 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "sbpfs.h"
-
+#include "lib.h"
 s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 	return 0;
 }

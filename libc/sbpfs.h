@@ -18,9 +18,9 @@
 
 #ifndef __SBP_LIBC_SBPFS_H_
 #define __SBP_LIBC_SBPFS_H_
-#include "lib.h"
-#include "global.h"
 
+#include "global.h"
+#include "error.h"
 /* MODE */
 
 #define S_ORD		0x02
@@ -65,8 +65,7 @@ s32_t sbp_test(char* buf, u64_t len, char* target ,u32_t port);
 
 /*TOOLS*/
 void sbp_perror(char* s);
-void sbp_seterr(char* type, char* detail);
-void sbp_update_err(struct sbpfs_head* head);
+
 /*login.c*/
 s32_t sbp_getusername(char** username);
 s32_t sbp_getUandP(char** username,char** password);

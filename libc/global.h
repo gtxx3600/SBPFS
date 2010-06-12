@@ -24,9 +24,11 @@ extern char sbp_user[MAX_USERNAME_LEN + 1];
 extern char sbp_pass[MAX_PASSWORD_LEN + 1];
 extern char sbp_host[MAX_HOSTNAME_LEN + 1];
 
-extern char*	sbp_err_type;
-extern char*  	sbp_err_detail;
+extern struct sbp_err * err_trace;
 
-extern struct file_desc* fds[MAX_FILE_OPEN];
+
+extern struct 	sbp_filedesc* fds[MAX_FILE_OPEN];
+extern char 	sbp_PWD[MAX_PATH_LEN];
+extern char		sbp_ROOT[MAX_PATH_LEN];
 
 #endif /* GLOBAL_H_ */
