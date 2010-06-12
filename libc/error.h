@@ -38,16 +38,18 @@
 #define SEND			"Could not send a specified length"
 #define RECV			"Could not receive a specified length"
 #define FIND_CONTENT_LEN	"Could not find 'Content-length'"
-#define seterr(type,detail) sbp_seterr(type,detail,__FILE__,__LINE__)
-void sbp_seterr(char* type, char* detail, char* file, int line);
+#define seterr(type,detail) sbp_seterr(type,detail,__FILE__,__LINE__,__FUNCTION__)
+void sbp_seterr(char* type, char* detail,const char* file, int line, const char* func);
 void sbp_update_err(struct sbpfs_head* head);
 
 struct sbp_err{
+	int 	line;
+	struct sbp_err * next;
 	char* 	type;
 	char*  	detail;
 	char*	file;
-	int 	line;
-	struct sbp_err * next;
+	char*	func;
+
 };
 
 #endif /* ERROR_H_ */

@@ -26,7 +26,8 @@ static void free_err_entry(struct sbp_err * err_ent);
 static void print_errent(struct sbp_err *errent);
 static void clear_err();
 void sbp_perror(char* s){
-	printf("%s",s);
+	if(s != NULL && strlen(s))
+		printf("%s\n",s);
 	while(err_trace != NULL)
 	{
 		print_errent(err_trace);
@@ -43,11 +44,11 @@ static void print_errent(struct sbp_err *errent)
 	if(!(errent->detail == NULL)){
 		printf("Error Detail: %s\n",errent->detail);
 	}
-	if(!(errent->file == NULL)){
-		printf("Error Position: FILE: %s LINE: %d\n",errent->file,errent->line);
+	if(!(errent->file == NULL)&&!(errent->func == NULL)){
+		printf("Error Position: FILE: %s LINE: %d FUNC: %s\n",errent->file,errent->line,errent->func);
 	}
 }
-void sbp_seterr(char* type, char* detail, char* file, int line){
+void sbp_seterr(char* type, char* detail,const char* file, int line,const char* func){
 	struct sbp_err* new_err = init_err();
 	if(new_err == NULL) return;
 	new_err -> next = err_trace;
@@ -55,18 +56,22 @@ void sbp_seterr(char* type, char* detail, char* file, int line){
 	int typelen = strlen(type);
 	int detaillen = strlen(detail);
 	int filelen = strlen(file);
-	if(((new_err->type = (char*)malloc(typelen+1)) == NULL)||((new_err->detail = (char*)malloc(typelen+1)) == NULL)||((new_err->file = (char*)malloc(typelen+1)) == NULL))
+	int funclen = strlen(func);
+	if(((new_err->type = (char*)malloc(typelen+1)) == NULL)||((new_err->detail = (char*)malloc(detaillen+1)) == NULL)||((new_err->file = (char*)malloc(filelen+1)) == NULL)||((new_err->func = (char*)malloc(funclen+1)) == NULL))
 	{
 		printf("Fatel Error ! sbp_seterr malloc failed\n");
 		free_err();
 		return;
 	}
+	new_err -> line = line;
 	memcpy(new_err -> type, type, typelen);
 	memcpy(new_err -> detail, detail, detaillen);
 	memcpy(new_err -> file, file, filelen);
+	memcpy(new_err -> func, func, funclen);
 	new_err -> type[typelen] = 0;
 	new_err -> detail[detaillen] = 0;
 	new_err -> file[filelen] = 0;
+	new_err -> func[funclen] = 0;
 }
 void sbp_update_err(struct sbpfs_head* head){
 	char* type = NULL;
@@ -129,6 +134,10 @@ static void free_err_entry(struct sbp_err * err_ent)
 		if(!(err_ent->type == NULL))
 		{
 			free(err_ent->type);
+		}
+		if(!(err_ent->func == NULL))
+		{
+			free(err_ent->func);
 		}
 		free(err_ent);
 
