@@ -84,6 +84,9 @@ s32_t sbp_opendir(char* filename) {
 	return fd;
 
 }
+s32_t sbp_closedir(u32_t dirfd){
+	return sbp_close(dirfd);
+}
 s32_t sbp_readdir(u32_t dirfd) {
 	if (fds[dirfd] == NULL) {
 		return -1;

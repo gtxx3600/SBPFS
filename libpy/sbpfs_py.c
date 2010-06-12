@@ -73,6 +73,26 @@ PyObject *wrap_sbp_chown(PyObject *self, PyObject *args)
 	result = sbp_chown(filename,username);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_open(PyObject *self, PyObject *args)
+{
+	char *filename;
+	unsigned int oflag;
+	unsigned char mode;
+	int result;
+	if (!PyArg_ParseTuple(args, "sIb", &filename, &oflag,&mode))
+		return NULL;
+	result = sbp_open(filename,oflag,mode);
+	return Py_BuildValue("i", result);
+}
+PyObject *wrap_sbp_opendir(PyObject *self, PyObject *args)
+{
+	char *filename;
+	int result;
+	if (!PyArg_ParseTuple(args, "s", &filename))
+		return NULL;
+	result = sbp_opendir(filename);
+	return Py_BuildValue("i", result);
+}
 PyObject *wrap_sbp_perror(PyObject *self, PyObject *args)
 {
 	char *str;
@@ -90,6 +110,15 @@ PyObject *wrap_sbp_remove(PyObject *self, PyObject *args)
 	result = sbp_remove(filename);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_mkdir(PyObject *self, PyObject *args)
+{
+	char *filename;
+	int result;
+	if (!PyArg_ParseTuple(args, "s", &filename))
+			return NULL;
+	result = sbp_mkdir(filename);
+	return Py_BuildValue("i", result);
+}
 PyObject *wrap_sbp_move(PyObject *self, PyObject *args)
 {
 	char *dst,*src;
@@ -98,6 +127,22 @@ PyObject *wrap_sbp_move(PyObject *self, PyObject *args)
 		return NULL;
 	result = sbp_move(dst,src);
 	return Py_BuildValue("i", result);
+}
+PyObject *wrap_sbp_close(PyObject *self, PyObject *args)
+{
+	int fd;
+	if (!PyArg_ParseTuple(args, "i",&fd))
+		return NULL;
+	sbp_close(fd);
+	return Py_BuildValue("");
+}
+PyObject *wrap_sbp_closedir(PyObject *self, PyObject *args)
+{
+	int dirfd;
+	if (!PyArg_ParseTuple(args, "i",&dirfd))
+		return NULL;
+	sbp_close(dirfd);
+	return Py_BuildValue("");
 }
 static PyMethodDef cpymodMethods[] =
 {
@@ -109,6 +154,11 @@ static PyMethodDef cpymodMethods[] =
 	{"perror", wrap_sbp_perror, METH_VARARGS, "perror() print error detail"},
 	{"remove", wrap_sbp_remove, METH_VARARGS, "remove(filename)"},
 	{"move", wrap_sbp_move, METH_VARARGS, "move(dst,src)"},
+	{"closedir",wrap_sbp_closedir, METH_VARARGS, "closedir(dirfd)"},
+	{"close",wrap_sbp_close, METH_VARARGS, "close(fd)"},
+	{"mkdir",wrap_sbp_mkdir, METH_VARARGS, "mkdir(dirname)"},
+	{"open",wrap_sbp_open, METH_VARARGS, "open(filename,oflag,mode) return fd"},
+	{"opendir",wrap_sbp_opendir, METH_VARARGS, "opendir(dirname) return fd"},
 	{NULL, NULL}
 };
 

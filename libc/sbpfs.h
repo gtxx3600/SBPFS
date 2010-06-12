@@ -46,10 +46,10 @@
 s32_t sbp_open(char* filename, u32_t oflag, u16_t mode);
 s32_t sbp_close(u32_t fd);
 /* dir.c */
-s32_t sbp_opendir(char* dirname);//TODO
-s32_t sbp_mkdir(char* dirname);//TODO
+s32_t sbp_opendir(char* dirname);
+s32_t sbp_mkdir(char* dirname);
 s32_t sbp_readdir(u32_t dirfd);//TODO
-s32_t sbp_closedir(u32_t dirfd);//TODO
+s32_t sbp_closedir(u32_t dirfd);
 
 /*read_write.c*/
 s64_t sbp_read(s64_t fd, void* buf, u64_t len);//TODO
