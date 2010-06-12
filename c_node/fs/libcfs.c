@@ -20,6 +20,19 @@
 
 #include "cfs.h"
 
+PyObject *wrap_c_mkdir(PyObject *self, PyObject *args)
+{
+	unsigned long dt;
+	char *path;
+	unsigned int uid;
+	int ret;
+	if (!PyArg_ParseTuple(args, "ksI", &dt, &path, &uid)) {
+		return NULL;
+	}
+	ret = c_mkdir((dtree_t *)dt, path, uid);
+	return Py_BuildValue("i", ret);
+}
+
 PyObject *wrap_open_disk(PyObject *self, PyObject *args)
 {
 	char *dt_name, *in_name;
@@ -54,6 +67,7 @@ PyObject *wrap_close_disk(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef libcfsMethods[] = {
+		{"c_mkdir", wrap_c_mkdir, METH_VARARGS, ""},
 		{"open_disk", wrap_open_disk, METH_VARARGS, ""},
 		{"save_disk", wrap_save_disk, METH_VARARGS, ""},
 		{"close_disk", wrap_close_disk, METH_VARARGS, ""},

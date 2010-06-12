@@ -239,8 +239,11 @@ class Connection(threading.Thread):
                      'RMDIR': self.__rmdir,
                      'OPEN': self.__open,
                      'OPENDIR': self.__opendir,
+                     'CLOSE': self.__close,
+                     'CLOSEDIR': self.__closedir,
                      'CHOWN': self.__chown,
                      'CHMOD': self.__chmod,
+                     'STAT': self.__stat,
                      }
         if not do_method.has_key(method):
             self.__senderr('MethodError', 'No Such Method: %s' % method)
@@ -273,8 +276,14 @@ class Connection(threading.Thread):
         debug('__open(%s, %s, %s)' % (filename, oflags, mode))
     def __opendir(self, dirname):
         debug('__opendir(%s)' % dirname)
+    def __close(self, fd):
+        debug('__close(%s)' % fd)
+    def __closedir(self, fd):
+        debug('__closedir(%s)' % dd)
     def __chown(self, filename, username):
         debug('__chown(%s, %s)' % (filename, username))
 #        self.conn.send('SBPFS/1.0 OK\r\n\r\n')
     def __chmod(self, filename, mode):
         debug('__chmod(%s, %s)' % (filename, mode))
+    def __stat(self, filename):
+        debug('__stat(%s)' % filename)

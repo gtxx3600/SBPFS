@@ -25,6 +25,7 @@ class DTree:
         self.dt_file = dt_file
         self.in_file = in_file
         self.diskp = open_disk(dt_file, in_file)
+        c_mkdir(self.diskp, '/abc', 0)
     
     def __lookup(self, path):
         '''return a file entry of the selected path'''

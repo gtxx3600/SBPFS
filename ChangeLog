@@ -1,3 +1,7 @@
+2010-06-12 CHEN Yangyang <skabyy@gmail.com>
+
+    * Implement a simple version of mkdir
+
 2010-06-12 HAN Haofu <gtxx3600@gmail.com>
 
     * Define some macro and simplify code significant

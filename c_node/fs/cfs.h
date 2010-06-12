@@ -23,6 +23,7 @@
 
 #define MAX_FSNAME 16
 
+#define S_NFD ~0
 #define S_DIR 0x1
 #define S_FIL 0x0
 
@@ -40,7 +41,7 @@
 #define BYTSPERSEC 512
 
 #define FREESEC 0
-#define ENDSEC ~0UL
+#define ENDSEC ~0
 
 typedef struct sb {
 	char fstype[MAX_FSNAME];
@@ -73,20 +74,19 @@ typedef struct dtree {
 
 typedef struct file_meta {
 	u32_t uid;
+	u32_t count;
 	u64_t flen;
 	u64_t c_time;
 	u64_t r_time;
 	u64_t w_time;
-	u32_t count;
-	u32_t strlen;
+	u64_t strbase;
+	u64_t strlen;
+	u32_t blocks;
 	u8_t flags;
-	u8_t reserve[19];
+	u8_t reserve[3];
 } file_meta_t;
 
-typedef struct file_struct {
-	file_meta_t meta;
-} file_struct_t;
-
+int c_mkdir(dtree_t *dt, char *path, u32_t uid);
 dtree_t *open_disk(char *dt_name, char *in_name);
 int save_disk(dtree_t *dt, char *dt_name, char *in_name);
 void close_disk(dtree_t *p);
