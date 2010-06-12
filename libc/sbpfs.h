@@ -29,13 +29,19 @@
 #define S_IRD 		0x08
 #define S_IWR		0x04
 
-/* OFLAG */
+/* OFLAGS */
+
+#define O_RDONLY	0x01
+#define O_WRONLY	0x02
+#define O_RDWR		0x04
+#define O_CREAT		0x08
+#define O_APPEND	0x10
 
 /* APIs */
 
 /* open.c */
-s32_t sbp_open(char* filename, u32_t oflag, u16_t mode);//TODO
-s32_t sbp_close(u32_t fd);//TODO
+s32_t sbp_open(char* filename, u32_t oflag, u16_t mode);
+void sbp_close(u32_t fd);
 /* dir.c */
 s32_t sbp_opendir(char* dirname);//TODO
 s32_t sbp_mkdir(char* dirname);//TODO

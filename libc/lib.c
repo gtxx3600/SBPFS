@@ -19,6 +19,7 @@
 
 #include "lib.h"
 #include "error.h"
+#include "global.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -150,18 +151,18 @@ s64_t get_missing_len(char* buf) {
 	char* content_len_end = NULL;
 	char* header_end;
 	if ((header_end = strstr(buf, HEADER_FLAG)) == NULL) {
-		seterr(SBPFS_HEAD_ERR, HEAD_FLAG);
+		seterr(HEAD_ERR, HEAD_FLAG);
 		goto error_exit;
 	}
 
 	header_length = header_end - buf + strlen(HEADER_FLAG);
 	//printf("header_start: %p ;header_end: %p ;header_len %lld ; strlen(header_flag) : %ld\n",buf,header_end,header_length,strlen(HEADER_FLAG));
 	if ((content_len_start = strstr(buf, CONTENT_LEN)) == NULL) {
-		seterr(SBPFS_HEAD_ERR, CONTENT_LEN);
+		seterr(HEAD_ERR, CONTENT_LEN);
 		goto error_exit;
 	}
 	if ((content_len_end = strstr(content_len_start, "\r\n")) == NULL) {
-		seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
+		seterr(HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit;
 	}
 	content_len_start += strlen(CONTENT_LEN);
@@ -171,7 +172,7 @@ s64_t get_missing_len(char* buf) {
 		goto error_exit;
 	}
 	content_len[content_len_end - content_len_start] = 0;
-	content_length = atoi(content_len);
+	content_length = atoll(content_len);
 	//printf("missing length : %lld\n",(content_length + header_length - BUF_SIZE));
 	return content_length + header_length - BUF_SIZE;
 
@@ -185,10 +186,11 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 	u64_t header_len;
 	int i = 0;
 	if ((header_end = strstr(data, HEADER_FLAG)) == NULL) {
-		seterr(SBPFS_HEAD_ERR, HEAD_FLAG);
+		seterr(HEAD_ERR, HEAD_FLAG);
 		goto error_exit;
 	}
 	header_len = header_end - data + strlen(HEADER_FLAG);
+	head->head_len = header_len;
 	if ((head->data = malloc(header_len + 1)) == NULL) {
 		seterr(MEM_ERR, MALLOC);
 		goto error_exit;
@@ -197,14 +199,14 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 	memcpy(head->data, data, header_len);
 	head->title = head->data;
 	if ((prev_ptr = strstr(head->data, "\r\n")) == NULL) {
-		seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
+		seterr(HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit2;
 	}
 	*prev_ptr = 0;
 	prev_ptr += 2;
 	while (1) {
 		if ((next_ptr = strstr(prev_ptr, "\r\n")) == NULL) {
-			seterr(SBPFS_HEAD_ERR, LINE_SEPARATOR);
+			seterr(HEAD_ERR, LINE_SEPARATOR);
 			goto error_exit2;
 		}
 		if (next_ptr == prev_ptr) {
@@ -215,7 +217,7 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		*next_ptr = 0;
 		next_ptr += 2;
 		if ((prev_ptr = strstr(prev_ptr, ": ")) == NULL) {
-			seterr(SBPFS_HEAD_ERR, COLON);
+			seterr(HEAD_ERR, COLON);
 			goto error_exit2;
 		}
 		*prev_ptr = 0;
@@ -234,7 +236,7 @@ s32_t make_head(char** data, int* len, struct sbpfs_head* head) {
 	u64_t total_len = 0;
 	char* cp_ptr;
 	if (head->entry_num > MAX_ENTRY_IN_HEAD){
-		seterr(SBPFS_HEAD_ERR,TOO_MANY_ENTRY);
+		seterr(HEAD_ERR,TOO_MANY_ENTRY);
 		return -1;
 	}
 	total_len += strlen(head->title) + 2;
@@ -283,7 +285,42 @@ void free_head(struct sbpfs_head* head){
 void init_head(struct sbpfs_head* head){
 	bzero(head, sizeof(struct sbpfs_head));
 }
-void test() {
-	printf("haha");
+s32_t get_slot()
+{
+	s32_t i =0;
+	while(i<MAX_FILE_OPEN)
+	{
+		if(fds[i] == NULL)
+		{
+			return i;
+		}
+		i++;
+	}
+	seterr(MEM_ERR, SLOT_FULL);
+	return -1;
+}
+void free_sbpfd(struct sbp_filedesc* fd)
+{
+	if(fd == NULL)
+		return;
+	if(fd->filename!= NULL)
+	{
+		free(fd->filename);
+	}
+	free(fd);
+	return;
+}
+char* get_head_entry_value(struct sbpfs_head* head,char* entry)
+{
+	if (entry == NULL) return NULL;
+	int i = 0;
+	while(i< head->entry_num)
+	{
+		if(strcmp(head->entrys[i].name,entry)== 0)
+		{
+			return head->entrys[i].value;
+		}
+	}
+	return NULL;
 }
 

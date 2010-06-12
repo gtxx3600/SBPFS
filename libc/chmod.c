@@ -28,7 +28,7 @@ s32_t sbp_chmod(char* filename, u16_t mode){
 	char* data;
 	char* rec_data;
 	char tran_usr[TRAN_USERNAME_LEN];
-	char tran_mode[3];
+	char tran_mode[16];
 	u64_t rec_len = 0;
 	int data_len = 0;
 	head.data = NULL;
@@ -39,7 +39,7 @@ s32_t sbp_chmod(char* filename, u16_t mode){
 		return -1;
 	}
 	sprintf(tran_usr, "Client_%s", usr);
-	sprintf(tran_mode,"%02x",(int) mode);
+	sprintf(tran_mode,"%04x",(int) mode);
 	mkent(head,USER,tran_usr);
 	mkent(head,PASS,pass);
 	mkent(head,METHOD,"CHMOD");

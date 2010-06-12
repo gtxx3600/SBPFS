@@ -20,6 +20,7 @@
 #define __SBP_LIBC_LIB_H_
 #include "const.h"
 #include <sys/types.h>
+#include <stdlib.h>
 struct sbpfs_head;
 
 
@@ -29,24 +30,36 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head);
 s32_t make_head(char** data, int* len, struct sbpfs_head* head);
 void  free_head(struct sbpfs_head* head);
 void  init_head(struct sbpfs_head* head);
-
-
+s32_t get_slot();
+char* get_head_entry_value(struct sbpfs_head* head,char* entry);
 struct sbp_filedesc
 {
-	u16_t mode;
+	u64_t server_fd;
+	u32_t oflag;
 	u64_t offset;
-	u64_t total_length;
 	char* filename;
-	char  auth_code[IDENTIFY_CODE_LEN];
-	char  owner[MAX_USERNAME_LEN+1];
+	char  auth_code[AUTH_CODE_LEN+1];
 
 };
+void free_sbpfd(struct sbp_filedesc* fd);
 struct sbp_dirent{
 	u64_t fd;
 	u64_t d_off;
 	u8_t d_type;
 	char d_name[MAX_FILENAME_LEN];
 };
+struct sbp_stat {
+	u64_t	fd;    			/* FD number */
+	u64_t   nlink;   		/* number of hard links */
+	u64_t   size;   	 	/* total size, in bytes */
+	u64_t 	atime;   		/* time of last access */
+	u64_t   mtime;   		/* time of last modification */
+	u64_t   ctime;   		/* time of last status change */
+	u8_t    mode;    		/* file type & protection */
+	u8_t	owner[MAX_USERNAME_LEN];     		/* user ID of owner */
+	u8_t 	preserved[15];
+};
+
 /* Size of click is 16MB*/
 struct click_data{
 	u64_t id;
@@ -61,10 +74,12 @@ struct head_entry{
 	head.entrys[head.entry_num++].value = val;
 #define mkusr(usr)	"Client_"##usr
 struct sbpfs_head{
+	u64_t head_len;
 	char* title;
 	int entry_num;
 	struct head_entry entrys[MAX_ENTRY_IN_HEAD];
 	char* data;
 };
+
 
 #endif
