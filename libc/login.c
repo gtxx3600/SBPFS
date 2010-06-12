@@ -17,6 +17,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "sbpfs.h"
+#include "lib.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>

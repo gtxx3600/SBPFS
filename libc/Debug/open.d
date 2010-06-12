@@ -1,9 +1,12 @@
-open.d open.o: ../open.c ../sbpfs.h ../lib.h ../const.h ../global.h
+open.d open.o: ../open.c ../sbpfs.h ../global.h ../const.h ../error.h \
+ ../lib.h
 
 ../sbpfs.h:
 
-../lib.h:
+../global.h:
 
 ../const.h:
 
-../global.h:
+../error.h:
+
+../lib.h:

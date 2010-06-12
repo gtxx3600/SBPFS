@@ -16,15 +16,17 @@
 // along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-#include "global.h"
+#include "sbpfs.h"
 #include <stdlib.h>
 
 char sbp_user[MAX_USERNAME_LEN + 1] = "anonymous";
 char sbp_pass[MAX_PASSWORD_LEN + 1] = "";
 char sbp_host[MAX_HOSTNAME_LEN + 1] = "127.0.0.1";
 
-struct file_desc* fds[MAX_FILE_OPEN] = {};
+struct sbp_filedesc* fds[MAX_FILE_OPEN] = {};
 
-char* 	sbp_err_type   = NULL;
-char*  	sbp_err_detail = NULL;
+char sbp_PWD[MAX_PATH_LEN] = "";
+
+struct sbp_err *err_trace = NULL;
+
 

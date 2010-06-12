@@ -23,21 +23,29 @@
 struct sbpfs_head;
 
 
-s32_t sendrec_ip(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
+s32_t sendrec_hostname(char* host_name, u64_t port,char* data, u64_t len, char** rec_buf, u64_t * rec_len);
+s64_t sbp_connect(char* host_name, u64_t port);
 s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head);
 s32_t make_head(char** data, int* len, struct sbpfs_head* head);
 void  free_head(struct sbpfs_head* head);
 void  init_head(struct sbpfs_head* head);
-struct file_desc
+
+
+struct sbp_filedesc
 {
 	u16_t mode;
 	u64_t offset;
 	u64_t total_length;
 	char* filename;
-	char  identify[IDENTIFY_CODE_LEN];
+	char  auth_code[IDENTIFY_CODE_LEN];
 	char  owner[MAX_USERNAME_LEN+1];
 
-
+};
+struct sbp_dirent{
+	u64_t fd;
+	u64_t d_off;
+	u8_t d_type;
+	char d_name[MAX_FILENAME_LEN];
 };
 /* Size of click is 16MB*/
 struct click_data{

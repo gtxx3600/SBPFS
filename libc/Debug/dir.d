@@ -1,9 +1,12 @@
-dir.d dir.o: ../dir.c ../sbpfs.h ../lib.h ../const.h ../global.h
+dir.d dir.o: ../dir.c ../sbpfs.h ../global.h ../const.h ../error.h \
+ ../lib.h
 
 ../sbpfs.h:
 
-../lib.h:
+../global.h:
 
 ../const.h:
 
-../global.h:
+../error.h:
+
+../lib.h:
