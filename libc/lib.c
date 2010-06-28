@@ -205,14 +205,14 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		seterr(MEM_ERR, MALLOC);
 		goto error_exit;
 	}
-	head->data[header_len] = 0;
+	head->data[header_len] = '\0';
 	memcpy(head->data, data, header_len);
 	head->title = head->data;
 	if ((prev_ptr = strstr(head->data, "\r\n")) == NULL) {
 		seterr(HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit2;
 	}
-	*prev_ptr = 0;
+	*prev_ptr = '\0';
 	prev_ptr += 2;
 	while (1) {
 		if ((next_ptr = strstr(prev_ptr, "\r\n")) == NULL) {
@@ -224,13 +224,13 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		}
 		head->entrys[i].name = prev_ptr;
 
-		*next_ptr = 0;
+		*next_ptr = '\0';
 		next_ptr += 2;
 		if ((prev_ptr = strstr(prev_ptr, ": ")) == NULL) {
 			seterr(HEAD_ERR, COLON);
 			goto error_exit2;
 		}
-		*prev_ptr = 0;
+		*prev_ptr = '\0';
 		prev_ptr += 2;
 		head->entrys[i].value = prev_ptr;
 		head->entry_num += 1;

@@ -20,7 +20,7 @@
 #include "lib.h"
 #include <stdio.h>
 #include <string.h>
-static s64_t read_blocks(struct block_entry* ents, u64_t block_count, void* buf);
+static s64_t read_blocks(struct block_entry* ents, u64_t block_count, char* buf,char* auth_code);
 s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 	if (fds[fd] == NULL)
 		return -1;
@@ -56,8 +56,8 @@ s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 			goto err_exit3;
 		}
 		u64_t block_ent_num = content_l / sizeof(struct block_entry);
-		struct block_entry* ents = (struct block_entry*)head.data;
-		ret = read_blocks(ents,block_ent_num,buf);
+		struct block_entry* ents = (struct block_entry*)(rec_data + head.head_len);
+		ret = read_blocks(ents,block_ent_num,buf,fds[fd]->auth_code);
 
 		goto ok_exit;
 	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
@@ -89,45 +89,105 @@ s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 s64_t sbp_write(s64_t fd,void* buf, u64_t len){
 	return 0;
 }
-static s64_t read_blocks(struct block_entry* ents, u64_t block_count, void* buf)
+static s64_t read_blocks(struct block_entry* ents, u64_t block_count, char* buf, char* auth_code)
 {
-	s64_t ret = -1;
-	s64_t buf_ptr;
-	SBP_PREPARE_REQUEST
-	if (make_head(&data, &data_len, &head) == -1) {
-		seterr(HEAD_ERR,MAKE_HEAD);
-		goto err_exit;
-	}/*data need free*/
-	if (sendrec_hostname(sbp_host, DNODE_SERVICE_PORT, data, data_len,&rec_data, &rec_len) != 0) {
-		goto err_exit1;
-	}/*rec_data need free*/
-	if (strlen(rec_data) == 0) {
-		seterr(SOCKET_ERR,RECV);
-		goto err_exit2;
+	s64_t ret = 0;
+	s64_t buf_ptr = 0;
+	int i=0;
+	struct sbpfs_head head;
+	char* usr;
+	char* pass;
+	char* data;
+	char* rec_data;
+	char tran_usr[TRAN_USERNAME_LEN];
+
+	char tran_blocknum[32];
+	char tran_offset[32];
+	char tran_len[32];
+	if (sbp_getUandP(&usr, &pass) == -1) {
+		printf("Can not get username and password\n");
+		return -1;
 	}
-	if (decode_head(rec_data, rec_len, &head) == -1) {
-		seterr("Data Error", "Can not decode SBPFS_HEAD");
-		goto err_exit2;
-	}/*head need free*/
-	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
+	sprintf(tran_usr, "Client_%s", usr);
+
+	while(i< block_count){
+		u64_t rec_len = 0;
+		int data_len = 0;
+		head.data = NULL;
+		head.title = PROTOCOL;
+		head.entry_num = 0;
+		mkent(head,USER,tran_usr);
+		mkent(head,PASS,pass);
+		mkent(head,AUTH_CODE,auth_code);
+		mkent(head,METHOD,"READ");
+		mkent(head,ARGC,"3");
+		bzero(tran_blocknum,32);
+		bzero(tran_offset,32);
+		bzero(tran_len,32);
+		sprintf(tran_blocknum,"%lld",ents[i].block_id);
+		sprintf(tran_offset,"%d",ents[i].offset_in_block);
+		sprintf(tran_len,"%d",ents[i].length_in_block);
+		mkent(head,"Arg0",tran_blocknum);
+		mkent(head,"Arg1",tran_offset);
+		mkent(head,"Arg2",tran_len);
+		mkent(head,CONTENT_LEN,"0");
+
+		if (make_head(&data, &data_len, &head) == -1) {
+			seterr(HEAD_ERR,MAKE_HEAD);
+			goto err_exit;
+		}/*data need free*/
+		if (sendrec_hostname(sbp_host, DNODE_SERVICE_PORT, data, data_len,&rec_data, &rec_len) != 0) {
+			goto err_exit1;
+		}/*rec_data need free*/
+		if (strlen(rec_data) == 0) {
+			seterr(SOCKET_ERR,RECV);
+			goto err_exit2;
+		}
+		if (decode_head(rec_data, rec_len, &head) == -1) {
+			seterr("Data Error", "Can not decode SBPFS_HEAD");
+			goto err_exit2;
+		}/*head need free*/
+		if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
+			u64_t content_l = -1;
+			char* value = get_head_entry_value(&head,CONTENT_LEN);
+			if(value == NULL)
+			{
+				seterr(HEAD_ERR,NO_CONTENT_LEN);
+				goto err_exit3;
+			}
+			content_l = atoll(value);
+			if(content_l != ents[i].length_in_block)
+			{
+				seterr(DATA_ERR,DATA_LEN);
+				goto err_exit3;
+			}
+			memcpy(buf + buf_ptr,rec_data + head.head_len, content_l);
+			buf_ptr += content_l;
+			ret += content_l;
+			free(data);
+			free(rec_data);
+			free_head(&head);
+			i++;
+			continue;
+
+		} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
+			sbp_update_err(&head);
+			goto err_exit3;
+		} else {
+			seterr(HEAD_ERR, UNKNOWN_HEAD);
+		}
 
 
-		goto ok_exit;
-	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
-		sbp_update_err(&head);
-		goto err_exit3;
-	} else {
-		seterr(HEAD_ERR, UNKNOWN_HEAD);
 	}
+	goto ok_exit;
+
 	err_exit3: free_head(&head);
 	err_exit2: free(rec_data);
 	err_exit1: free(data);
 	err_exit: free(usr);
 	free(pass);
 	return -1;
-	ok_exit: free(data);
-	free(rec_data);
-	free_head(&head);
+	ok_exit:
 	free(usr);
 	free(pass);
 return ret;
