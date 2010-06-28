@@ -115,6 +115,8 @@ s32_t sbp_close(u32_t fd) {
 	err_exit1: free(data);
 	err_exit: free(usr);
 	free(pass);
+	free_sbpfd(fds[fd]);
+	fds[fd] = NULL;
 	return -1;
 	ok_exit: free(data);
 	free(rec_data);

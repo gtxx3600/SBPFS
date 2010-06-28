@@ -32,12 +32,15 @@ void  free_head(struct sbpfs_head* head);
 void  init_head(struct sbpfs_head* head);
 s32_t get_slot();
 char* get_head_entry_value(struct sbpfs_head* head,char* entry);
+char* get_dnode_hostname(u32_t dnode);
+struct block_entry;
 struct sbp_filedesc
 {
 	u64_t server_fd;
-	u32_t oflag;
 	u64_t offset;
+	u32_t oflag;
 	u8_t  type;
+
 	char* filename;
 	char  auth_code[AUTH_CODE_LEN+1];
 
@@ -70,6 +73,13 @@ struct click_data{
 struct head_entry{
 	char* name;
 	char* value;
+};
+struct block_entry{
+	u64_t block_id;
+	u32_t offset_in_block;
+	u32_t length_in_block;
+	u32_t d_node1;
+	u32_t d_node2;
 };
 #define mkent(head,n,val)  head.entrys[head.entry_num].name = n;\
 	head.entrys[head.entry_num++].value = val;

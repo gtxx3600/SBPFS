@@ -29,8 +29,18 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
-
+char dnode_hostname[32];
 s64_t get_missing_len(char* buf);
+char* get_dnode_hostname(u32_t dnode)
+{
+	char i1,i2,i3,i4;
+	i1 = (char)(dnode>>24);
+	i2 = (char)((dnode>>16)&(255));
+	i3 = (char)((dnode>>8)&(255));
+	i4 = (char)dnode;
+	sprintf(dnode_hostname,"%d.%d.%d.%d",i1,i2,i3,i4);
+	return dnode_hostname;
+}
 s32_t sbp_send(s64_t sockfd, char* data, u64_t len)
 {
 	u64_t numbytes;

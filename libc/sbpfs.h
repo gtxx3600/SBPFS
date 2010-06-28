@@ -49,6 +49,7 @@ s32_t sbp_close(u32_t fd);
 s32_t sbp_opendir(char* dirname);
 s32_t sbp_mkdir(char* dirname);
 s32_t sbp_readdir(u32_t dirfd);//TODO
+s32_t sbp_stat(char* filename);//TODO
 s32_t sbp_closedir(u32_t dirfd);
 
 /*read_write.c*/

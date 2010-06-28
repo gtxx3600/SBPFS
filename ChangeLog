@@ -1,3 +1,10 @@
+2010-06-18 HAN Haofu <gtxx3600@gmail.com>
+
+    * Define struct block_entry
+    * Define char* get_dnode_hostname(u32_t dnode);
+    * Fix open()
+    * Draft sbp_read()
+
 2010-06-12 HAN Haofu <gtxx3600@gmail.com>
 
     * Improve libpy (used for user) to catch up with libc
