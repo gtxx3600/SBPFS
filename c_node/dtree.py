@@ -25,10 +25,11 @@ class DTree:
         self.dt_file = dt_file
         self.in_file = in_file
         self.diskp = open_disk(dt_file, in_file)
-#        c_mkdir(self.diskp, '/abc/', 0)
-#        c_mkdir(self.diskp, '/abc/a', 0)
-#        c_mkdir(self.diskp, '/abc/b', 0)
-#        c_mkdir(self.diskp, '/abc/a/cc', 0)
+        print self.diskp
+        c_mkdir(self.diskp, '/abc/', 0)
+        c_mkdir(self.diskp, '/abc/a', 0)
+        c_mkdir(self.diskp, '/abc/b', 0)
+        c_mkdir(self.diskp, '/abc/a/cc', 0)
     
     def __lookup(self, path):
         '''return a file entry of the selected path'''
@@ -37,7 +38,7 @@ class DTree:
         ret = save_disk(self.diskp, self.dt_file, self.in_file)
         close_disk(self.diskp)
         if ret:
-            raise SaveError('')
+            raise SaveError()
         
 class SaveError(Exception):
     def __init__(self, msg=''):

@@ -41,9 +41,12 @@ void dump_meta(file_meta_t *fm)
 
 #define INIT_MAX (16*1024)
 
+#define do_writedir(dt, fb, data, size) do_writefile(dt, fb, data, size)
+#define do_readdir(dt, fb, ep) do_readfile(dt, fb, ep)
+
 static void reset_fat(u32_t fb, fat_t *fat);
-static void do_writedir(dtree_t *dt, u32_t fb, void *data, u64_t size);
-static void do_readdir(dtree_t *dt, u32_t fb, void *ep);
+static void do_writefile(dtree_t *dt, u32_t fb, void *data, u64_t size);
+static void do_readfile(dtree_t *dt, u32_t fb, void *ep);
 static int c_find_entry(dtree_t *dt, file_entry_t* base,
 		char *path, u32_t uid, file_entry_t *ret);
 static int c_lookup(dtree_t *dt, char *path, u32_t uid, file_entry_t *ret);
@@ -205,7 +208,7 @@ static void reset_fat(u32_t fb, fat_t *fat)
 	}
 }
 
-static void do_writedir(dtree_t *dt, u32_t fb, void *data, u64_t size)
+static void do_writefile(dtree_t *dt, u32_t fb, void *data, u64_t size)
 {
 	file_meta_t *meta = data;
 	u32_t i, bytsPerSec = dt->sb->bytsPerSec, fat_index = fb;
@@ -225,7 +228,7 @@ static void do_writedir(dtree_t *dt, u32_t fb, void *data, u64_t size)
 	dt->fat_p[fat_index] = ENDSEC;
 }
 
-static void do_readdir(dtree_t *dt, u32_t fb, void *data)
+static void do_readfile(dtree_t *dt, u32_t fb, void *data)
 {
 	u32_t fat_num = fb;
 	u32_t bytsPerSec = dt->sb->bytsPerSec;
@@ -433,7 +436,6 @@ static int initdir(u32_t uid,
 	entries[1].fb = parent->fb;
 	meta->count++;
 
-	count = (size + sb->bytsPerSec - 1) / sb->bytsPerSec;
 //printf("here1: count=%d, fat_index=%d\n", count, fat_index);
 	for (i = 0; i < count;) {
 		int len = (size < sb->bytsPerSec) ? size : sb->bytsPerSec;
