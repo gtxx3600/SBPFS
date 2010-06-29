@@ -1,3 +1,7 @@
+2010-06-22 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
+
+    * Finish the connection 
+
 2010-06-20 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
 
     * Define method createblock readblock writeblock deleteblock
