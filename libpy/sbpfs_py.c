@@ -84,6 +84,67 @@ PyObject *wrap_sbp_open(PyObject *self, PyObject *args)
 	result = sbp_open(filename,oflag,mode);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_readdir(PyObject *self, PyObject *args)
+{
+	int fd;
+
+	struct sbp_dirent* result;
+	if (!PyArg_ParseTuple(args, "i", &fd))
+		return NULL;
+
+	result = sbp_readdir(fd);
+	if(result == NULL)
+	{
+		return Py_BuildValue("");
+	}
+	PyObject* pTuple = PyTuple_New(3);
+	assert(PyTuple_Check(pTuple));
+	assert(PyTuple_Size(pTuple) == 3);
+	PyTuple_SetItem(pTuple, 0, Py_BuildValue("K", result->offset));
+	PyTuple_SetItem(pTuple, 1, Py_BuildValue("s", result->d_type == T_DIR ? "directory" : "file"));
+	if(strlen(result->d_name) <= 256){
+		PyTuple_SetItem(pTuple, 2, Py_BuildValue("s", result->d_name));
+	}
+	else{
+		PyTuple_SetItem(pTuple, 2, Py_BuildValue("s#", result->d_name,256));
+	}
+	return pTuple;
+}
+PyObject *wrap_sbp_read(PyObject *self, PyObject *args)
+{
+	int fd;
+	unsigned long long length;
+	char *rec_buf;
+	int result;
+	if (!PyArg_ParseTuple(args, "iK", &fd, &length))
+		return NULL;
+	if((rec_buf = (char*)malloc(length))== NULL)
+	{
+		return Py_BuildValue("");
+	}
+
+	result = sbp_read(fd,rec_buf,length);
+	PyObject * temp = Py_BuildValue("s#", rec_buf, length);
+	free(rec_buf);
+	return temp;
+}
+PyObject *wrap_sbp_write(PyObject *self, PyObject *args)
+{
+	int fd;
+	unsigned long long length;
+	char *send_buf;
+	unsigned long long result;
+	if (!PyArg_ParseTuple(args, "isK", &fd, &send_buf, &length))
+		return NULL;
+
+	result = sbp_write(fd,send_buf,length);
+	if(result == length)
+	{
+		return Py_BuildValue("");
+	}
+
+	return Py_BuildValue("i", result);
+}
 PyObject *wrap_sbp_opendir(PyObject *self, PyObject *args)
 {
 	char *filename;
@@ -117,6 +178,15 @@ PyObject *wrap_sbp_mkdir(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "s", &filename))
 			return NULL;
 	result = sbp_mkdir(filename);
+	return Py_BuildValue("i", result);
+}
+PyObject *wrap_sbp_rmdir(PyObject *self, PyObject *args)
+{
+	char *filename;
+	int result;
+	if (!PyArg_ParseTuple(args, "s", &filename))
+			return NULL;
+	result = sbp_rmdir(filename);
 	return Py_BuildValue("i", result);
 }
 PyObject *wrap_sbp_move(PyObject *self, PyObject *args)
@@ -157,6 +227,10 @@ static PyMethodDef cpymodMethods[] =
 	{"closedir",wrap_sbp_closedir, METH_VARARGS, "closedir(dirfd)"},
 	{"close",wrap_sbp_close, METH_VARARGS, "close(fd)"},
 	{"mkdir",wrap_sbp_mkdir, METH_VARARGS, "mkdir(dirname)"},
+	{"rmdir",wrap_sbp_rmdir, METH_VARARGS, "rmdir(dirname)"},
+	{"read",wrap_sbp_read, METH_VARARGS, "read(fd,length) return string"},
+	{"readdir",wrap_sbp_readdir, METH_VARARGS, "readdir() return (offset_in_dir(number), file_type(string), filename(string))"},
+	{"write",wrap_sbp_write, METH_VARARGS, "write(fd,data,length) on error, return length of sent data"},
 	{"open",wrap_sbp_open, METH_VARARGS, "open(filename,oflag,mode) return fd"},
 	{"opendir",wrap_sbp_opendir, METH_VARARGS, "opendir(dirname) return fd"},
 	{NULL, NULL}

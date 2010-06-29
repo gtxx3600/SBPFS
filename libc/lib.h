@@ -33,6 +33,8 @@ void  init_head(struct sbpfs_head* head);
 s32_t get_slot();
 char* get_head_entry_value(struct sbpfs_head* head,char* entry);
 char* get_dnode_hostname(u32_t dnode);
+s32_t sbp_send(s64_t sockfd, char* data, u64_t len);
+s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len);
 struct block_entry;
 struct sbp_filedesc
 {
@@ -46,23 +48,11 @@ struct sbp_filedesc
 
 };
 void free_sbpfd(struct sbp_filedesc* fd);
-struct sbp_dirent{
-	u64_t fd;
-	u64_t d_off;
+struct sbp_dirent_for_trans{
 	u8_t d_type;
 	char d_name[MAX_FILENAME_LEN];
 };
-struct sbp_stat {
-	u64_t	fd;    			/* FD number */
-	u64_t   nlink;   		/* number of hard links */
-	u64_t   size;   	 	/* total size, in bytes */
-	u64_t 	atime;   		/* time of last access */
-	u64_t   mtime;   		/* time of last modification */
-	u64_t   ctime;   		/* time of last status change */
-	u8_t    mode;    		/* file type & protection */
-	u8_t	owner[MAX_USERNAME_LEN];     		/* user ID of owner */
-	u8_t 	preserved[15];
-};
+
 
 /* Size of click is 16MB*/
 struct click_data{
@@ -78,8 +68,8 @@ struct block_entry{
 	u64_t block_id;
 	u32_t offset_in_block;
 	u32_t length_in_block;
-	u32_t d_node1;
-	u32_t d_node2;
+	u32_t d_nodes[REDUNDANCY + 1];
+
 };
 #define mkent(head,n,val)  head.entrys[head.entry_num].name = n;\
 	head.entrys[head.entry_num++].value = val;

@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+struct sbp_dirent dir_ent;
 s32_t sbp_opendir(char* filename) {
 	s32_t fd = get_slot();
 	SBP_PREPARE_REQUEST
@@ -85,13 +86,81 @@ s32_t sbp_opendir(char* filename) {
 
 }
 s32_t sbp_closedir(u32_t dirfd){
-	return sbp_close(dirfd);
-}
-s32_t sbp_readdir(u32_t dirfd) {
-	if (fds[dirfd] == NULL) {
+	if (fds[dirfd]->type == T_DIR)
+		return sbp_close(dirfd);
+	else
 		return -1;
+}
+struct sbp_dirent* sbp_readdir(u32_t dirfd) {
+	if (fds[dirfd] == NULL) {
+		return NULL;
 	}
-	return 0;
+	struct sbpfs_head head;
+	char* usr;
+	char* pass;
+	char* data;
+	char* rec_data;
+	char tran_usr[16 + 7];
+	u64_t rec_len = 0;
+	int data_len = 0;
+	head.data = ((void *)0);
+	head.title = "SBPFS/1.0";
+	head.entry_num = 0;
+	if (sbp_getUandP(&usr, &pass) == -1) {
+		printf("Can not get username and password\n");
+		return NULL;
+	}
+	sprintf(tran_usr, "Client_%s", usr);
+	head.entrys[head.entry_num].name = "User";
+	head.entrys[head.entry_num++].value = tran_usr;;
+	head.entrys[head.entry_num].name = "Password";
+	head.entrys[head.entry_num++].value = pass;;
+	char tran_fd[32];
+	char tran_offset[32];
+	sprintf(tran_fd,"%lld",fds[dirfd]->server_fd);
+	sprintf(tran_offset,"%lld",fds[dirfd]->offset);
+	mkent(head,METHOD,"READDIR");
+	mkent(head,ARGC,"2");
+	mkent(head,"Arg0",tran_fd);
+	mkent(head,"Arg1",tran_offset);
+	mkent(head,CONTENT_LEN,"0");
+
+	SBP_SEND_AND_PROCESS_REPLY
+	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
+		u64_t content_l = -1;
+		char* value = get_head_entry_value(&head,CONTENT_LEN);
+		if(value == NULL)
+		{
+			seterr(HEAD_ERR,NO_CONTENT_LEN);
+			goto err_exit3;
+		}
+		content_l = atoll(value);
+		if(content_l != sizeof(struct sbp_dirent_for_trans))
+		{
+			goto err_exit3;
+		}
+
+		memcpy(&dir_ent,rec_data + head.head_len,content_l);
+		dir_ent.offset = fds[dirfd]->offset++;
+		goto ok_exit;
+	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
+		sbp_update_err(&head);
+		goto err_exit3;
+	} else {
+		seterr(HEAD_ERR,UNKNOWN_HEAD);
+	}
+	err_exit3: free_head(&head);
+	err_exit2: free(rec_data);
+	err_exit1: free(data);
+	err_exit: free(usr);
+	free(pass);
+	return NULL;
+	ok_exit: free(data);
+	free(rec_data);
+	free_head(&head);
+	free(usr);
+	free(pass);
+	return &dir_ent;
 }
 
 s32_t sbp_mkdir(char* filename) {
@@ -107,4 +176,15 @@ s32_t sbp_mkdir(char* filename) {
 	SBP_PROCESS_RESULT
 	SBP_PROCESS_ERR
 }
+s32_t sbp_rmdir(char* filename){
+	SBP_PREPARE_REQUEST
 
+	mkent(head,METHOD,"RMDIR");
+	mkent(head,ARGC,"1");
+	mkent(head,"Arg0",filename);
+	mkent(head,CONTENT_LEN,"0");
+
+	SBP_SEND_AND_PROCESS_REPLY
+	SBP_PROCESS_RESULT
+	SBP_PROCESS_ERR
+}

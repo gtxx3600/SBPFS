@@ -30,7 +30,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 char dnode_hostname[32];
-s64_t get_missing_len(char* buf);
+s64_t get_missing_len(char* buf,u64_t received_bytes);
 char* get_dnode_hostname(u32_t dnode)
 {
 	char i1,i2,i3,i4;
@@ -53,54 +53,69 @@ s32_t sbp_send(s64_t sockfd, char* data, u64_t len)
 }
 s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 {
-	u64_t missing_bytes,numbytes;
+	u64_t missing_bytes,numbytes,received_len = 0;
 	char buf[BUF_SIZE + 1];
 	buf[BUF_SIZE] = 0;
-	numbytes = recv(sockfd, buf, BUF_SIZE, 0);
-	if (numbytes < BUF_SIZE) {
-		//printf("numbytes < BUF_SIZE\n");
-		if ((*rec_buf = (char*) malloc(numbytes + 1)) == NULL) {
-			seterr(MEM_ERR, MALLOC);
-			goto error_exit;
-		}
-		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
-			seterr(MEM_ERR, MEMCPY);
-			goto error_exit2;
-		}
+	while(1){
+		numbytes = recv(sockfd, buf + received_len, BUF_SIZE - received_len, 0);
+		received_len += numbytes;
+		if((missing_bytes = get_missing_len(buf,received_len)) < 0)
+		{
+			if(received_len >= BUF_SIZE)
+			{
+				seterr(SOCKET_ERR,RECV);
+				goto error_exit;
+			}
+			continue;
+		}else
+		{
+			if ((*rec_buf = (char*) malloc(missing_bytes + received_len + 1)) == NULL) {
+				char tmp[128];
+				sprintf(tmp,"missing bytes:%lld received_bytes: %lld",missing_bytes,numbytes);
 
-		(*rec_buf)[numbytes] = 0;
-		*rec_len = numbytes + 1;
-		goto ok_exit;
-
-	} else {
-		//printf("numbytes >= BUF_SIZE\n");
-		if ((missing_bytes = get_missing_len(buf)) < 0) {
-			seterr(SOCKET_ERR,MISSING_LEN);
-			goto error_exit;
+				seterr(MEM_ERR, tmp);//MALLOC tmp);
+				goto error_exit;
+			}
+			if (memcpy(*rec_buf, buf, received_len) != *rec_buf) {
+				seterr(MEM_ERR, MEMCPY);
+				goto error_exit2;
+			}
+			u64_t received_len2 = 0;
+			int count = 0;
+			while(1){
+				if ((numbytes = recv(sockfd, (*rec_buf) + received_len + received_len2, missing_bytes - received_len2, 0))
+						< 0) {
+					seterr(SOCKET_ERR,RECV);
+					goto error_exit2;
+				}
+				received_len2 += numbytes;
+				if(received_len2 >= missing_bytes)
+				{
+					break;
+				}
+				if(numbytes == 0)
+				{
+					count++;
+					if(count >= 3)
+					{
+						printf("received_len1 :%lld received_len2 :%lld missing: %lld numbytes:%lld",received_len,received_len2,missing_bytes,numbytes);
+						seterr(SOCKET_ERR,RECV);
+						goto error_exit2;
+					}
+				}
+			}
+			(*rec_buf)[missing_bytes + received_len] = 0;
+			*rec_len = missing_bytes + received_len + 1;
+			goto ok_exit;
 		}
-		if ((*rec_buf = (char*) malloc(missing_bytes + numbytes + 1)) == NULL) {
-			seterr(MEM_ERR, MALLOC);
-			goto error_exit;
-		}
-		if (memcpy(*rec_buf, buf, numbytes) != *rec_buf) {
-			seterr(MEM_ERR, MEMCPY);
-			goto error_exit2;
-		}
-		if ((numbytes = recv(sockfd, &(*rec_buf)[numbytes], missing_bytes, 0))
-				!= missing_bytes) {
-			seterr(SOCKET_ERR,RECV);
-			goto error_exit2;
-		}
-		(*rec_buf)[missing_bytes + BUF_SIZE] = 0;
-		*rec_len = missing_bytes + BUF_SIZE + 1;
-		goto ok_exit;
-
 	}
+
 	error_exit2:free(*rec_buf);
 	error_exit: close(sockfd);
 	return -1;
 
 	ok_exit: close(sockfd);
+	//printf("received :%lld ok and return\n",*rec_len);
 	return 0;
 }
 s64_t sbp_connect(char* host_name, u64_t port)
@@ -154,7 +169,7 @@ s32_t sendrec_hostname(char* host_name, u64_t port, char* data, u64_t len,
 	}
 	return 0;
 }
-s64_t get_missing_len(char* buf) {
+s64_t get_missing_len(char* buf,u64_t received_bytes) {
 	u64_t content_length = 0, header_length = 0;
 	char content_len[64];
 	char* content_len_start = NULL;
@@ -175,7 +190,7 @@ s64_t get_missing_len(char* buf) {
 		seterr(HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit;
 	}
-	content_len_start += strlen(CONTENT_LEN);
+	content_len_start += strlen(CONTENT_LEN) + 2;
 	if (memcpy(content_len, content_len_start, content_len_end
 			- content_len_start) != content_len) {
 		seterr(MEM_ERR, MEMCPY);
@@ -183,18 +198,20 @@ s64_t get_missing_len(char* buf) {
 	}
 	content_len[content_len_end - content_len_start] = 0;
 	content_length = atoll(content_len);
-	//printf("missing length : %lld\n",(content_length + header_length - BUF_SIZE));
-	return content_length + header_length - BUF_SIZE;
+	//printf("missing length : %lld content_length:%lld header_len: %lld received_len: %lld\n ",(content_length + header_length - received_bytes),content_length,header_length,received_bytes);
+	return content_length + header_length - received_bytes;
 
 	error_exit: return -1;
 }
 
 s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
+	if(head == NULL) return -1;
 	char* header_end;
 	char* prev_ptr, *next_ptr;
 	//char* next_ptr;
 	u64_t header_len;
 	int i = 0;
+	init_head(head);
 	if ((header_end = strstr(data, HEADER_FLAG)) == NULL) {
 		seterr(HEAD_ERR, HEAD_FLAG);
 		goto error_exit;
@@ -205,14 +222,14 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		seterr(MEM_ERR, MALLOC);
 		goto error_exit;
 	}
-	head->data[header_len] = 0;
+	head->data[header_len] = '\0';
 	memcpy(head->data, data, header_len);
 	head->title = head->data;
 	if ((prev_ptr = strstr(head->data, "\r\n")) == NULL) {
 		seterr(HEAD_ERR, LINE_SEPARATOR);
 		goto error_exit2;
 	}
-	*prev_ptr = 0;
+	*prev_ptr = '\0';
 	prev_ptr += 2;
 	while (1) {
 		if ((next_ptr = strstr(prev_ptr, "\r\n")) == NULL) {
@@ -224,17 +241,18 @@ s32_t decode_head(char* data, u64_t len, struct sbpfs_head* head) {
 		}
 		head->entrys[i].name = prev_ptr;
 
-		*next_ptr = 0;
+		*next_ptr = '\0';
 		next_ptr += 2;
 		if ((prev_ptr = strstr(prev_ptr, ": ")) == NULL) {
 			seterr(HEAD_ERR, COLON);
 			goto error_exit2;
 		}
-		*prev_ptr = 0;
+		*prev_ptr = '\0';
 		prev_ptr += 2;
 		head->entrys[i].value = prev_ptr;
 		head->entry_num += 1;
 		prev_ptr = next_ptr;
+		i++;
 	}
 
 	return 0;
