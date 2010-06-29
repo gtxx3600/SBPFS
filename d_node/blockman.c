@@ -5,24 +5,20 @@
  *      Author: cxy
  */
 
-typedef unsigned long long u64_t;
-typedef long long s64_t;
-typedef unsigned int u32_t;
-typedef int s32_t;
-typedef unsigned short u16_t;
-typedef short s16_t;
-typedef unsigned char u8_t;
-typedef char s8_t;
 
-#define MAX_BLOCKSIZE 6400
-#define BLOCKNAME 64
-#define FILEMAXSIZE 1024*1024*16
+
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include<stdio.h>
+#include"blockman.h"
+
+/*#define MAX_BLOCKSIZE 6400
+#define BLOCKNAME 64
+#define FILEMAXSIZE 1024*1024*16
 char blocklist[BLOCKNAME][MAX_BLOCKSIZE];
 char path[1000];
 char* listpath = "/home/cxy/blocklist";
@@ -37,7 +33,7 @@ void getpath(u64_t blocknum);
 int deletelist(u64_t blocknum);
 int addlist(u64_t blocknum);
 void initlist();
-/*int main() {
+int main() {
 	initlist();
 	getlist();
 	writeblock(3263, 3, 3, "abc");
@@ -54,7 +50,7 @@ void initlist();
 	getlist();
 	return 0;
 }*/
-
+char* listpath = "/home/cxy/blocklist";
 int getlist() {
 	FILE *blist;
 	blist = fopen(listpath, "rb");
@@ -99,7 +95,7 @@ void initlist() {
 	fclose(fd);
 }
 
-int readblock(u64_t blocknum, int offset, int length) {
+int readblock(u64_t blocknum, u64_t offset, u64_t length) {
 	getpath(blocknum);
 	FILE *block;
 	if ((block = fopen(path, "rb")) == NULL) {
@@ -118,7 +114,7 @@ int readblock(u64_t blocknum, int offset, int length) {
 	return 0;
 }
 
-int writeblock(u64_t blocknum, int offset, int length, char* data) {
+int writeblock(u64_t blocknum, u64_t offset, u64_t length, char* data) {
 	getpath(blocknum);
 	FILE *block;
 	if ((block = fopen(path, "rb+")) == NULL) {
@@ -241,6 +237,5 @@ int deletelist(u64_t blocknum) {
 		}
 		fclose(blist);
 		return 0;
-
 }
 
