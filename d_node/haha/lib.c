@@ -117,10 +117,10 @@ s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 	}
 
 	error_exit2:free(*rec_buf);
-	error_exit: close(sockfd);
+	error_exit: //close(sockfd);
 	return -1;
 
-	ok_exit: close(sockfd);
+	ok_exit: //close(sockfd);
 	//printf("received :%lld ok and return\n",*rec_len);
 	return 0;
 }
