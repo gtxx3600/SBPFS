@@ -77,6 +77,8 @@ void sbp_update_err(struct sbpfs_head* head){
 	char* type = NULL;
 	char* detail = NULL;
 	int i;
+	//printf("update_err called \n");
+	//printf("head entry_num : %d \n",head->entry_num);
 	for(i = 0; i < head->entry_num ; i++)
 	{
 		if(strcmp(head->entrys[i].name,ERR_TYPE) == 0){
@@ -84,12 +86,15 @@ void sbp_update_err(struct sbpfs_head* head){
 		}else if(strcmp(head->entrys[i].name,ERR_DETAIL) == 0){
 			detail = head->entrys[i].value;
 		}
-		if(type&&detail)
+		if((type!=NULL)&&(detail))
 		{
+			//printf("update_err found entry\n");
 			seterr(type,detail);
+			//printf("update_err done\n");
 			return;
 		}
 	}
+	//printf("update_err do nothing\n");
 }
 static struct sbp_err * init_err()
 {

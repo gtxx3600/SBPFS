@@ -1,3 +1,20 @@
+2010-06-21 CHEN Yangyang <skabyy@gmail.com>
+
+    * Add mkdir and rmdir
+    * fix some bugs
+
+2010-06-20 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
+
+    * Define method createblock readblock writeblock deleteblock
+    * Basic connection
+
+2010-06-18 HAN Haofu <gtxx3600@gmail.com>
+
+    * Define struct block_entry
+    * Define char* get_dnode_hostname(u32_t dnode);
+    * Fix open()
+    * Draft sbp_read()
+
 2010-06-12 CHEN Yangyang <skabyy@gmail.com>
 
     * Fix a bug of path lookup

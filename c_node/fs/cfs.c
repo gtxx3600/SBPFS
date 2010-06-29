@@ -539,6 +539,7 @@ static int extend(dtree_t *dt, u64_t newsize)
 	buf = malloc(newsize);
 	if (!buf)
 		return -1;
+	memset(buf, 0, bytsPerSec);
 
 	sb = buf;
 	memcpy(sb, dt->sb, sizeof(sb_t));

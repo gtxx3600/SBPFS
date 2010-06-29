@@ -22,8 +22,11 @@
 #define SOCKET_ERR 		"Socket Error"
 #define MEM_ERR			"Memory Error"
 #define DATA_ERR		"Data Error"
-#define HEAD_ERR	"SBPFS HEAD Error"
+#define HEAD_ERR		"SBPFS HEAD Error"
+#define REQ_ERR			"Request Error"
 
+
+#define FILE_TYPE		"Could not read or write dir"
 #define MAKE_HEAD		"Could not make head"
 #define UNKNOWN_HEAD	"Could not identify data received"
 #define DECODE_HEAD		"Could not decode SBPFS_HEAD"
@@ -45,6 +48,9 @@
 #define FIND_CONTENT_LEN	"Could not find 'Content-length'"
 #define SLOT_FULL		"Could not find a free file_desc slot"
 #define AUTH_LEN		"Auth-code length not match"
+#define NO_CONTENT_LEN	"Missing Content-Length Entry"
+
+
 #define seterr(type,detail) sbp_seterr(type,detail,__FILE__,__LINE__,__FUNCTION__)
 void sbp_seterr(char* type, char* detail,const char* file, int line, const char* func);
 void sbp_update_err(struct sbpfs_head* head);
