@@ -5,15 +5,18 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../cfs.c \
-../libcfs.c 
+../libcfs.c \
+../test.c 
 
 OBJS += \
 ./cfs.o \
-./libcfs.o 
+./libcfs.o \
+./test.o 
 
 C_DEPS += \
 ./cfs.d \
-./libcfs.d 
+./libcfs.d \
+./test.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

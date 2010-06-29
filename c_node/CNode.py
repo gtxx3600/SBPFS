@@ -60,7 +60,7 @@ class CtrlNode:
     def __main(self):
         while True:
             work = self.__getWork()
-            Connection(work)
+            Connection(work, self.dtree, self.users_info)
     
     def __initailize(self):
         self.__init_passwd(PASSWD)
@@ -117,11 +117,13 @@ class CtrlNode:
         sys.exit(ret)
 
 class Connection(threading.Thread):
-    def __init__(self, work):
+    def __init__(self, work, dtree, users_info):
         assert type(work) == tuple and len(work) == 2
         
         threading.Thread.__init__(self)
         
+        self.dtree = dtree
+        self.users_info = users_info
         self.conn = work[0]
         self.addr = work[1]
         debug('Connect by %s' % self.addr[0])
@@ -142,8 +144,16 @@ class Connection(threading.Thread):
             self.__senderr('NoUserError', 'No User Name')
             self.conn.close()
             return
+        if not head.has_key('Password'):
+            self.__senderr('NoPasswordError', 'No Password')
+            self.conn.close()
+            return
         if head['User'].startswith('Client_'):
-            self.__handle_client(head, data)
+            user = head['User'].replace('Client_', '')
+            password = head['Password']
+            self.__handle_client(UserInfo(self.users_info.find_uid(user), 
+                                          user, password), 
+                                 head, data)
         elif head['User'].startswith('DNode_'):
             self.__handle_dnode(head, data)
         else:
@@ -205,12 +215,45 @@ class Connection(threading.Thread):
         except:
             pass
     
-    def __handle_client(self, head, data):
+    def __sendhugeerr(self, type, detail):
+        statusline = 'SBPFS/1.0 ERROR'
+        d = {}
+        d['User'] = 'CNode_0'
+        d['Content-Length'] = 8000
+        d['Error-Type'] = type
+        d['Error-Detail'] = detail
+        head_s = gen_head(statusline, d)
+        data = 'a' * 8000
+        try:
+            debug(head_s, 1)
+            self.conn.send(head_s)
+            self.conn.send(data)
+        except:
+            pass
+    
+    def __sendok(self):
+        statusline = 'SBPFS/1.0 OK'
+        d = {}
+        d['User'] = 'CNode_0'
+        d['Content-Length'] = 0
+        head_s = gen_head(statusline, d)
+        try:
+            debug(head_s, 1)
+            self.conn.send(head_s)
+        except:
+            pass
+    
+    def __handle_client(self, user_info, head, data):
         def check_missing_key(key, type, detail):
             if not head.has_key(key):
                 self.__senderr(type, detail)
                 return True
             return False
+        
+        if (not self.users_info.check(user_info)):
+            self.__senderr('LoginError', 'Username or password not correct')
+            return
+        self.uid = user_info.uid;
         
         if check_missing_key('Method', 'NoMethodError', 'No Method'):
             return
@@ -270,8 +313,20 @@ class Connection(threading.Thread):
         debug('__move(%s, %s)' % (dst, src))
     def __mkdir(self, dirname):
         debug('__mkdir(%s)' % dirname)
+        try:
+            self.dtree.mkdir(dirname, self.uid)
+            self.__sendok()
+        except DTreeError as e:
+            self.__sendhugeerr(e.type, e.msg)
+
     def __rmdir(self, dirname):
         debug('__rmdir(%s)' % dirname)
+        try:
+            self.dtree.rmdir(dirname, self.uid)
+            self.__sendok()
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+        
     def __open(self, filename, oflags, mode):
         debug('__open(%s, %s, %s)' % (filename, oflags, mode))
     def __opendir(self, dirname):

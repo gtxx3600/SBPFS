@@ -32,8 +32,9 @@
 #define S_ORD 0x2
 #define S_OWR 0x1
 
-#define S_IRW S_IRD|S_IWR
-#define S_ORW S_ORD|S_IWR
+#define S_IRW (S_IRD|S_IWR)
+#define S_ORW (S_ORD|S_OWR)
+#define S_ALL (S_IRW|S_ORW)
 
 #define INITMODE S_IRW|S_ORD
 
@@ -86,7 +87,10 @@ typedef struct file_meta {
 	u8_t reserve[3];
 } file_meta_t;
 
+int c_chown(dtree_t *dt, char *path, u32_t newuid, u32_t uid);
+int c_chmod(dtree_t *dt, char *path, u8_t mode, u32_t uid);
 int c_mkdir(dtree_t *dt, char *path, u32_t uid);
+int c_rmdir(dtree_t *dt, char *path, u32_t uid);
 dtree_t *open_disk(char *dt_name, char *in_name);
 int save_disk(dtree_t *dt, char *dt_name, char *in_name);
 void close_disk(dtree_t *p);

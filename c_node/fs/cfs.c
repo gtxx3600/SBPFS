@@ -39,31 +39,59 @@ void dump_meta(file_meta_t *fm)
 }
 #endif
 
-#define INIT_MAX (16*1024)
+#define INIT_MAX (32*1024)
 
 #define do_writedir(dt, fb, data, size) do_writefile(dt, fb, data, size)
 #define do_readdir(dt, fb, ep) do_readfile(dt, fb, ep)
 
 static void reset_fat(u32_t fb, fat_t *fat);
+static int do_remove_entry(void *pdata, file_entry_t *entry);
 static void do_writefile(dtree_t *dt, u32_t fb, void *data, u64_t size);
 static void do_readfile(dtree_t *dt, u32_t fb, void *ep);
+static file_entry_t *find_entry_by_name(void *pdata, char *name);
 static int c_find_entry(dtree_t *dt, file_entry_t* base,
 		char *path, u32_t uid, file_entry_t *ret);
 static int c_lookup(dtree_t *dt, char *path, u32_t uid, file_entry_t *ret);
 static int extend(dtree_t *dt, u64_t newsize);
-static void do_mkcfs(void *buf, unsigned int size, unsigned int bytsPerSec);
-static int initdir(u32_t uid,
-		file_entry_t *file_entry, file_entry_t *parent,
-		sb_t *sb, fat_t *fat, void *data);
+static void do_mkcfs(dtree_t *dt, unsigned int size, unsigned int bytsPerSec);
+static int initdir(dtree_t *dt, u32_t uid,
+		file_entry_t *file_entry, file_entry_t *parent);
 static u32_t next_free_fat(u32_t base, fat_t *fat, u32_t fat_num);
 static void *load_file(char *filename, unsigned int *size, unsigned *max);
 static int save_file(void *buf, unsigned int size, char *filename);
+
+#define R 0x2
+#define W 0x1
+static int permission_check(u32_t uid, file_meta_t *meta, u8_t op)
+{
+	u32_t oid = meta->uid;
+	u8_t fmode = meta->flags & S_ALL;
+//	printf("fmode=%x\n", fmode);
+	if (!uid) uid = oid;
+	if (uid == oid && op == R) {
+		return fmode & S_IRD;
+	} else if (uid == oid && op == W) {
+		return fmode & S_IWR;
+	} else if (uid != oid && op == R) {
+		return fmode & S_ORD;
+	} else if (uid != oid && op == W) {
+		return fmode & S_OWR;
+	} else {
+		return 0;
+	}
+}
+
+static int own_check(u32_t uid, u32_t oid)
+{
+	if (!uid) return 1;
+	return uid == oid;
+}
 
 dtree_t *open_disk(char *dt_name, char *in_name)
 {
 	dtree_t *dt;
 	unsigned int dt_size, in_size, dt_max, in_max;
-	int bytsPerSec;
+	int bytsPerSec, needmkfs = 0;
 
 	dt = (dtree_t *)malloc(sizeof(dtree_t));
 	memset(dt, 0, sizeof(dtree_t));
@@ -74,7 +102,7 @@ dtree_t *open_disk(char *dt_name, char *in_name)
 		if (!dt->dt_buf)
 			goto out_error;
 		dt_size = dt_max = INIT_MAX;
-		do_mkcfs(dt->dt_buf, dt_max, BYTSPERSEC);
+		needmkfs = 1;
 	}
 
 	dt->in_buf = load_file(in_name, &in_size, &in_max);
@@ -91,9 +119,12 @@ dtree_t *open_disk(char *dt_name, char *in_name)
 	dt->in_max = in_max;
 
 	dt->sb = dt->dt_buf;
-	bytsPerSec = dt->sb->bytsPerSec;
+	bytsPerSec = dt->sb->bytsPerSec = BYTSPERSEC;
 	dt->fat_p = (void *)dt->sb + bytsPerSec;
 	dt->data = (void *)dt->fat_p + bytsPerSec * dt->sb->fatSecNum;
+
+	if (needmkfs)
+		do_mkcfs(dt, dt_max, BYTSPERSEC);
 
 //	save_disk(dt, dt_name, in_name);
 
@@ -132,15 +163,9 @@ void close_disk(dtree_t *p)
 	}
 }
 
-int c_mkdir(dtree_t *dt, char *path, u32_t uid)
+static char *get_filename_from_path(char *path)
 {
-	char *dirname;
-	int len = strlen(path), i, last, ret;
-	u32_t bytsPerSec = dt->sb->bytsPerSec;
-	file_entry_t parent, *newdir;
-	file_meta_t pmeta, *meta;
-	u64_t newsize;
-	void *pdata, *buf;
+	int i, last = -1, len = strlen(path);
 
 	for (i = 0; i < len; i++) {
 		if (path[i] == '/') {
@@ -150,21 +175,102 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 				path[i] = 0;
 		}
 	}
+
+	if (last == -1)
+		return NULL;
+
 	path[last] = 0;
-	dirname = &path[last+1];
+	return &path[last+1];
+}
+
+int c_chown(dtree_t *dt, char *path, u32_t newuid, u32_t uid)
+{
+	int ret;
+	file_meta_t meta;
+	file_entry_t entry;
+	u32_t olduid;
+
+	ret = c_lookup(dt, path, uid, &entry);
+	if (ret)
+		return ret;
+
+	memcpy(&meta, dt->data + entry.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	olduid = meta.uid;
+	if (!own_check(uid, olduid)) {
+		return 4;
+	}
+	if (olduid == newuid) {
+		return 0;
+	}
+	if (uid) {
+		return 4;
+	}
+
+	meta.uid = newuid;
+	memcpy(dt->data + entry.fb*dt->sb->bytsPerSec, &meta,
+			sizeof(file_meta_t));
+	return 0;
+}
+
+int c_chmod(dtree_t *dt, char *path, u8_t mode, u32_t uid)
+{
+	int ret;
+	file_meta_t meta;
+	file_entry_t entry;
+
+	ret = c_lookup(dt, path, uid, &entry);
+	if (ret)
+		return ret;
+
+	memcpy(&meta, dt->data + entry.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	if (!own_check(uid, meta.uid)) {
+		return 4;
+	}
+	meta.flags &= ~S_ALL;
+	meta.flags |= mode;
+	memcpy(dt->data + entry.fb*dt->sb->bytsPerSec, &meta,
+			sizeof(file_meta_t));
+	return 0;
+}
+
+int c_mkdir(dtree_t *dt, char *path, u32_t uid)
+{
+	char *dirname;
+	int ret;
+	u32_t bytsPerSec = dt->sb->bytsPerSec;
+	file_entry_t parent, *newdir;
+	file_meta_t pmeta, *meta;
+	u64_t newsize;
+	void *pdata, *buf;
+
+	dirname = get_filename_from_path(path);
+	if (!dirname) {
+		return 1;
+	}
 
 //	printf("name=%s\n", dirname);
 	ret = c_lookup(dt, path, uid, &parent);
 //	printf("here: %x\n", parent.name);
 	if (ret)
 		return ret;
+	if (parent.type != S_DIR)
+		return 2;
 
 	memcpy(&pmeta, dt->data + parent.fb*bytsPerSec,
 			sizeof(file_meta_t));
+	if (!permission_check(uid, &pmeta, W)) {
+		return 4;
+	}
 //	dump_meta(&pmeta);
 	pdata = malloc(pmeta.blocks * bytsPerSec);
 	if (!pdata)
 		return -1;
+	do_readdir(dt, parent.fb, pdata);
+	if (find_entry_by_name(pdata, dirname)) {
+		return 3;
+	}
 
 	newsize = pmeta.flen + strlen(dirname) + 1 + sizeof(file_entry_t);
 	buf = malloc(newsize);
@@ -172,15 +278,15 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 		free(pdata);
 		return -1;
 	}
+	memset(buf, 0, newsize);
 
-	do_readdir(dt, parent.fb, pdata);
 	memcpy(buf, pdata, sizeof(file_meta_t)+pmeta.strbase);
 	meta = buf;
 //	dump_meta(meta);
 	newdir = (file_entry_t *)(buf + sizeof(file_meta_t) + pmeta.strbase);
 	newdir->name = pmeta.strlen;
 	newdir->type = S_DIR;
-	initdir(uid, newdir, &parent, dt->sb, dt->fat_p, dt->data);
+	initdir(dt, uid, newdir, &parent);
 	meta->strbase += sizeof(file_entry_t);
 	memcpy(buf+sizeof(file_meta_t)+meta->strbase,
 			pdata+sizeof(file_meta_t)+pmeta.strbase, pmeta.strlen);
@@ -189,12 +295,87 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 	meta->strlen += strlen(dirname)+1;
 	meta->flen = newsize;
 	meta->blocks = (newsize + bytsPerSec - 1) / bytsPerSec;
+	meta->count++;
 //	dump_meta(meta);
 	do_writedir(dt, parent.fb, buf, newsize);
 
 	free(pdata);
 	free(buf);
 
+	return 0;
+}
+
+static int is_dir_empty(file_entry_t *entry, file_meta_t *meta)
+{
+	if (meta->strbase > 2 * sizeof(file_entry_t))
+		return 0;
+	return 1;
+}
+
+int c_rmdir(dtree_t *dt, char *path, u32_t uid)
+{
+	char *dirname;
+	int ret;
+	u32_t bytsPerSec = dt->sb->bytsPerSec;
+	file_entry_t parent, *rmdirent;
+	file_meta_t pmeta, meta, *real_pmeta;
+	void *pdata, *buf;
+
+	dirname = get_filename_from_path(path);
+	if (!dirname) {
+		return 1;
+	}
+
+	ret = c_lookup(dt, path, uid, &parent);
+	if (ret)
+		return ret;
+	if (parent.type != S_DIR)
+		return 1;
+
+	memcpy(&pmeta, dt->data + parent.fb*bytsPerSec,
+			sizeof(file_meta_t));
+	if (!permission_check(uid, &pmeta, W)) {
+		return 4;
+	}
+	pdata = malloc(pmeta.blocks * bytsPerSec);
+	if (!pdata)
+		return -1;
+
+	do_readdir(dt, parent.fb, pdata);
+	rmdirent = find_entry_by_name(pdata, dirname);
+	if (!rmdirent) {
+		free(pdata);
+		return 1; // directory not found
+	}
+	if (rmdirent->type != S_DIR) {
+		free(pdata);
+		return 2; // not a directory
+	}
+
+	memcpy(&meta, dt->data + rmdirent->fb*bytsPerSec,
+			sizeof(file_meta_t));
+	buf = malloc(meta.blocks * bytsPerSec);
+	if (!buf)
+		return -1;
+	do_readdir(dt, rmdirent->fb, buf);
+	if (!is_dir_empty(rmdirent, &meta)) {
+		free(pdata);
+		return 3; // directory is not empty
+	}
+
+	real_pmeta = pdata;
+	real_pmeta->count--;
+	reset_fat(rmdirent->fb, dt->fat_p);
+	ret = do_remove_entry(pdata, rmdirent);
+	if (ret) {
+		free(pdata);
+		free(buf);
+		return ret;
+	}
+	do_writedir(dt, parent.fb, pdata, real_pmeta->flen);
+
+	free(pdata);
+	free(buf);
 	return 0;
 }
 
@@ -208,6 +389,25 @@ static void reset_fat(u32_t fb, fat_t *fat)
 	}
 }
 
+static int do_remove_entry(void *pdata, file_entry_t *entry)
+{
+	void *tmp, *p;
+	file_meta_t *meta = (file_meta_t *)pdata;
+	u64_t tmpsize, now = time(NULL);
+	p = (void *)entry + sizeof(file_entry_t);
+	tmpsize = meta->flen - (u64_t)((long)entry - (long)pdata);
+	tmp = malloc(tmpsize);
+	if (!tmp)
+		return -1;
+	memcpy(tmp, p, tmpsize);
+	memcpy(entry, tmp, tmpsize);
+	free(tmp);
+	meta->strbase -= sizeof(file_entry_t);
+	meta->w_time = now;
+	meta->flen -= sizeof(file_entry_t);
+	return 0;
+}
+
 static void do_writefile(dtree_t *dt, u32_t fb, void *data, u64_t size)
 {
 	file_meta_t *meta = data;
@@ -218,14 +418,19 @@ static void do_writefile(dtree_t *dt, u32_t fb, void *data, u64_t size)
 		int len = (size < bytsPerSec) ? size : bytsPerSec;
 		u32_t next;
 		memcpy(dt->data+fat_index*bytsPerSec, data+i*bytsPerSec, len);
+		dt->fat_p[fat_index] = ENDSEC;
 		i++;
 		if (i >= meta->blocks) break;
-		next = next_free_fat(fat_index, dt->fat_p, dt->sb->fatNum);
+		do {
+			next = next_free_fat(fat_index, dt->fat_p, dt->sb->fatNum);
+			if (next != -1) break;
+			extend(dt, dt->dt_size * 2);
+		} while (1);
+//		printf("    next=%d\n", next);
 		dt->fat_p[fat_index] = next;
 		fat_index = next;
 		size -= bytsPerSec;
 	}
-	dt->fat_p[fat_index] = ENDSEC;
 }
 
 static void do_readfile(dtree_t *dt, u32_t fb, void *data)
@@ -241,23 +446,37 @@ static void do_readfile(dtree_t *dt, u32_t fb, void *data)
 	}
 }
 
+static file_entry_t *find_entry_by_name(void *pdata, char *name)
+{
+	file_entry_t *ep, *p;
+	file_meta_t *meta = pdata;
+
+	ep = pdata + sizeof(file_meta_t);
+	for (p = ep; (u64_t)(long)p != (u64_t)(long)ep + meta->strbase; p++) {
+		char *s = (char *)ep + meta->strbase + p->name;
+		if (!strcmp(s, name))
+			return p;
+	}
+
+	return NULL;
+}
+
 static int c_find_entry(dtree_t *dt, file_entry_t* base,
 		char *path, u32_t uid, file_entry_t *ret)
 {
 	file_meta_t meta;
-	file_entry_t *ep, *p;
+	file_entry_t *p;
 	void *buf;
 	u32_t bytsPerSec = dt->sb->bytsPerSec;
 	u32_t fat_num = base->fb;
 	char *next_base = path, *cp;
+	int retval = 0;
 
 	memcpy(&meta, dt->data + fat_num*bytsPerSec,
 			sizeof(file_meta_t));
 	buf = malloc(meta.blocks * bytsPerSec);
 	if (!buf)
 		return -1;
-
-	ep = buf + sizeof(file_meta_t);
 
 	do_readdir(dt, base->fb, buf);
 
@@ -269,28 +488,22 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 		}
 	}
 
-//	printf("next_base: %s\n", next_base);
-	for (p = ep; (u64_t)(long)p != (u64_t)(long)ep + meta.strbase; p++) {
-		char *s = (char *)((char *)ep + meta.strbase + p->name);
-//		printf("filename: %s\n", s);
-		if (!strcmp(s, next_base))
-			break;
-	}
-	if ((u64_t)(long)p == (u64_t)(long)ep + meta.strbase) {
-//		printf("fail\n");
+	p = find_entry_by_name(buf, next_base);
+	if (!p) {
 		return 1;
 	}
-//	printf("success\n");
 
 	if (next_base == path) {
 		memcpy(ret, p, sizeof(file_entry_t));
+	} else if (p->type == S_DIR) {
+		retval = c_find_entry(dt, p, path, uid, ret);
 	} else {
-		c_find_entry(dt, p, path, uid, ret);
+		retval = 1;
 	}
 
 	free(buf);
 
-	return 0;
+	return retval;
 }
 
 static int c_lookup(dtree_t *dt, char *path, u32_t uid, file_entry_t *ret)
@@ -357,14 +570,17 @@ static int extend(dtree_t *dt, u64_t newsize)
 	return 0;
 }
 
-static void do_mkcfs(void *buf, unsigned int size, unsigned int bytsPerSec)
+static void do_mkcfs(dtree_t *dt, unsigned int size, unsigned int bytsPerSec)
 {
-	file_entry_t *root_entry;
+	void *buf = dt->dt_buf;
+	file_entry_t root_entry;
 	sb_t *sb = buf;
 	fat_t *fat;
 	u32_t totSecNum = size / bytsPerSec;
 	u32_t fatSize = totSecNum * sizeof(fat_t);
 	u32_t fatSecNum = (fatSize + bytsPerSec -1) / bytsPerSec;
+
+	dt->data = (void *)dt->fat_p + bytsPerSec * fatSecNum;
 
 	memset(buf, 0, sizeof(sb_t));
 	strcpy(sb->fstype, CFSNAME);
@@ -376,15 +592,17 @@ static void do_mkcfs(void *buf, unsigned int size, unsigned int bytsPerSec)
 	fat = buf+bytsPerSec;
 	memset(fat, 0, fatSecNum*bytsPerSec);
 	fat[0] = ENDSEC;
-	root_entry = buf + bytsPerSec + fatSecNum*bytsPerSec;
-	root_entry->name = 0;
-	root_entry->type = S_DIR;
-	initdir(0, root_entry, root_entry, sb, fat, (void *)root_entry);
+	//buf + bytsPerSec + fatSecNum*bytsPerSec;
+	memset(&root_entry, 0, sizeof(file_entry_t));
+	root_entry.name = 0;
+	root_entry.type = S_DIR;
+	initdir(dt, 0, &root_entry, &root_entry);
+	memcpy(dt->data, &root_entry,
+			sizeof(file_entry_t));
 }
 
-static int initdir(u32_t uid,
-		file_entry_t *file_entry, file_entry_t *parent,
-		sb_t *sb, fat_t *fat, void *data)
+static int initdir(dtree_t *dt, u32_t uid,
+		file_entry_t *file_entry, file_entry_t *parent)
 {
 	file_meta_t *meta;
 	file_entry_t *entries;
@@ -396,13 +614,21 @@ static int initdir(u32_t uid,
 	meta = malloc(size);
 	if (!meta)
 		return -1;
+	memset(meta, 0, size);
 
-	fat_index = file_entry->fb = next_free_fat(0, fat, sb->fatNum);
+	do {
+		fat_index = next_free_fat(0, dt->fat_p, dt->sb->fatNum);
+//printf("next=%d\n", fat_index);
+		if (fat_index != -1) break;
+//printf("extend\n");
+		extend(dt, dt->dt_size * 2);
+	} while (1);
 
+	file_entry->fb = fat_index;
 	entries = (void *)meta + sizeof(file_meta_t);
 	spool = (char *)&entries[2];
 
-	count = (size + sb->bytsPerSec - 1) / sb->bytsPerSec;
+	count = (size + dt->sb->bytsPerSec - 1) / dt->sb->bytsPerSec;
 
 	meta->flags = INITMODE;
 	meta->c_time = tm;
@@ -436,21 +662,26 @@ static int initdir(u32_t uid,
 	entries[1].fb = parent->fb;
 	meta->count++;
 
-//printf("here1: count=%d, fat_index=%d\n", count, fat_index);
+//printf("here1: count=%d, fat_index=%d, bps=%d\n", count, fat_index, dt->sb->bytsPerSec);
 	for (i = 0; i < count;) {
-		int len = (size < sb->bytsPerSec) ? size : sb->bytsPerSec;
+		int len = (size < dt->sb->bytsPerSec) ? size : dt->sb->bytsPerSec;
 		u32_t next;
-		memcpy(data+fat_index*sb->bytsPerSec,
-				(void *)meta+i*sb->bytsPerSec, len);
+		memcpy(dt->data+fat_index*dt->sb->bytsPerSec,
+				(void *)meta+i*dt->sb->bytsPerSec, len);
 		i += 1;
 //printf("here2: i=%d, count=%d\n",i,count);
 		if (i >= count) break;
-		next = next_free_fat(fat_index, fat, sb->fatNum);
-		fat[fat_index] = next;
+		do {
+			next = next_free_fat(fat_index, dt->fat_p, dt->sb->fatNum);
+			if (next != -1) break;
+			extend(dt, dt->dt_size * 2);
+		} while (1);
+		dt->fat_p[fat_index] = next;
 		fat_index = next;
-		size -= sb->bytsPerSec;
+		size -= dt->sb->bytsPerSec;
 	}
-	fat[fat_index] = ENDSEC;
+//printf("fat=%d\n", fat_index);
+	dt->fat_p[fat_index] = ENDSEC;
 //printf("free meta: fat_index=%d\n", fat_index);
 	free(meta);
 //printf("vvvv\n");

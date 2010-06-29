@@ -54,12 +54,22 @@ class UsersInfo:
             try:
                 line = line.strip()
                 un, uid, passwd = line.split(':')
+                uid = int(uid)
                 users_info.__users[un] = UserInfo(uid, un, passwd)
                 if users_info.__ucount < uid:
                     users_info.__ucount = uid
             except:
                 Warning('Invalid line: ', line)
         return users_info
+    
+    def check(self, user_info):
+        if not self.has_user(user_info.username):
+            return False
+        if user_info.username == 'anonymous':
+            return True
+        if self.__users[user_info.username].password != user_info.password:
+            return False
+        return True
     
     def find_uid(self, username):
         if self.has_user(username):
