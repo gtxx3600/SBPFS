@@ -25,8 +25,8 @@ int main(int argc,char * argv[])
 	
 
 	printf("long long:%lld\n",l);
-    char* host = "192.168.1.105";
-    int port = 9000;
+    char* host = "192.168.1.101";
+    int port = 9010;
     char* buf = "SBPFS/1.0\r\nUser: Client_haha\r\nMethod: OPEN\r\n\r\n";
     char* mkdir = "SBPFS/1.0\r\nUser: Client_haha\r\nMethod: MKDIR\r\nArgc: 1\r\nArg0: haha\r\n\r\n";
     int len = strlen(buf);

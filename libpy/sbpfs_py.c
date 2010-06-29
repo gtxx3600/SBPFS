@@ -154,6 +154,18 @@ PyObject *wrap_sbp_opendir(PyObject *self, PyObject *args)
 	result = sbp_opendir(filename);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_test(PyObject *self, PyObject *args)
+{
+	char *data;
+	unsigned long long len;
+	char * target;
+	unsigned int port;
+	int result;
+	if (!PyArg_ParseTuple(args, "sKsI", &data,&len,&target,&port))
+		return NULL;
+	result = sbp_test(data,len,target,port);
+	return Py_BuildValue("i", result);
+}
 PyObject *wrap_sbp_perror(PyObject *self, PyObject *args)
 {
 	char *str;
@@ -233,6 +245,7 @@ static PyMethodDef cpymodMethods[] =
 	{"write",wrap_sbp_write, METH_VARARGS, "write(fd,data,length) on error, return length of sent data"},
 	{"open",wrap_sbp_open, METH_VARARGS, "open(filename,oflag,mode) return fd"},
 	{"opendir",wrap_sbp_opendir, METH_VARARGS, "opendir(dirname) return fd"},
+	{"test",wrap_sbp_test, METH_VARARGS, "test(xxxxx) return int"},
 	{NULL, NULL}
 };
 

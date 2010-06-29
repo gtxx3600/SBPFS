@@ -53,11 +53,17 @@ s32_t sbp_send(s64_t sockfd, char* data, u64_t len)
 }
 s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 {
-	u64_t missing_bytes,numbytes,received_len = 0;
+	s64_t missing_bytes,numbytes,received_len = 0;
 	char buf[BUF_SIZE + 1];
 	buf[BUF_SIZE] = 0;
 	while(1){
+		printf("main loop\n");
 		numbytes = recv(sockfd, buf + received_len, BUF_SIZE - received_len, 0);
+		if(numbytes == 0)
+		{
+			seterr(SOCKET_ERR,RECV);
+			goto error_exit;
+		}
 		received_len += numbytes;
 		if((missing_bytes = get_missing_len(buf,received_len)) < 0)
 		{
@@ -66,9 +72,11 @@ s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 				seterr(SOCKET_ERR,RECV);
 				goto error_exit;
 			}
+			printf("main loop continue numbytes :%lld\n",numbytes);
 			continue;
 		}else
 		{
+			printf("recev %lld length\n",numbytes);
 			if ((*rec_buf = (char*) malloc(missing_bytes + received_len + 1)) == NULL) {
 				char tmp[128];
 				sprintf(tmp,"missing bytes:%lld received_bytes: %lld",missing_bytes,numbytes);
@@ -81,13 +89,15 @@ s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 				goto error_exit2;
 			}
 			u64_t received_len2 = 0;
-			int count = 0;
-			while(1){
+
+			while(missing_bytes){
+				printf("sub loop\n");
 				if ((numbytes = recv(sockfd, (*rec_buf) + received_len + received_len2, missing_bytes - received_len2, 0))
 						< 0) {
 					seterr(SOCKET_ERR,RECV);
 					goto error_exit2;
 				}
+				printf("advanced recev %lld length\n",numbytes);
 				received_len2 += numbytes;
 				if(received_len2 >= missing_bytes)
 				{
@@ -95,13 +105,9 @@ s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 				}
 				if(numbytes == 0)
 				{
-					count++;
-					if(count >= 3)
-					{
 						printf("received_len1 :%lld received_len2 :%lld missing: %lld numbytes:%lld",received_len,received_len2,missing_bytes,numbytes);
 						seterr(SOCKET_ERR,RECV);
 						goto error_exit2;
-					}
 				}
 			}
 			(*rec_buf)[missing_bytes + received_len] = 0;
@@ -157,16 +163,17 @@ s32_t sendrec_hostname(char* host_name, u64_t port, char* data, u64_t len,
 		seterr(SOCKET_ERR, EST_SOCK);
 		return -1;
 	}
-
+	printf("connect done\n");
 	if(sbp_send(sockfd, data, len) < 0){
 		seterr(SOCKET_ERR, SEND);
 		return -1;
 	}
-
+	printf("send done\n");
 	if((sbp_recv(sockfd, rec_buf, rec_len))< 0){
 		seterr(SOCKET_ERR, RECV);
 		return -1;
 	}
+	printf("recv done\n");
 	return 0;
 }
 s64_t get_missing_len(char* buf,u64_t received_bytes) {

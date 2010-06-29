@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+struct sbp_filestat filestat;
 s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 	s32_t fd = get_slot();
 	char tran_oflag[32];
@@ -93,6 +94,70 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 	return fd;
 
 }
+struct sbp_filestat* sbp_stat(char* filename)
+{
+	struct sbpfs_head head;
+	char* usr;
+	char* pass;
+	char* data;
+	char* rec_data;
+	char tran_usr[TRAN_USERNAME_LEN];
+	u64_t rec_len = 0;
+	int data_len = 0;
+	head.data = NULL;
+	head.title = PROTOCOL;
+	head.entry_num = 0;
+	if (sbp_getUandP(&usr, &pass) == -1) {
+		printf("Can not get username and password\n");
+		return NULL;
+	}
+	sprintf(tran_usr, "Client_%s", usr);
+	mkent(head,USER,tran_usr);
+	mkent(head,PASS,pass);
+	mkent(head,METHOD,"STAT");
+	mkent(head,ARGC,"1");
+	mkent(head,"Arg0",filename);
+	mkent(head,CONTENT_LEN,"0");
+
+	SBP_SEND_AND_PROCESS_REPLY
+
+	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
+		bzero(&filestat,sizeof(struct sbp_filestat));
+		u64_t content_l = -1;
+		char* value = get_head_entry_value(&head,CONTENT_LEN);
+		if(value == NULL)
+		{
+			seterr(HEAD_ERR,NO_CONTENT_LEN);
+			goto err_exit3;
+		}
+		content_l = atoll(value);
+		if(content_l != sizeof(struct sbp_filestat))
+		{
+			goto err_exit3;
+		}
+		memcpy(&filestat,rec_data + head.head_len,content_l);
+		goto ok_exit;
+	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
+		sbp_update_err(&head);
+		goto err_exit3;
+	} else {
+		seterr(HEAD_ERR, UNKNOWN_HEAD);
+	}
+
+
+	err_exit3: free_head(&head);
+	err_exit2: free(rec_data);
+	err_exit1: free(data);
+	err_exit: free(usr);
+	free(pass);
+	return NULL;
+	ok_exit: free(data);
+	free(rec_data);
+	free_head(&head);
+	free(usr);
+	free(pass);
+	return &filestat;
+}
 s32_t sbp_close(u32_t fd) {
 	if (fds[fd] == NULL)
 		return -1;
@@ -135,9 +200,10 @@ s32_t sbp_test(char* buf, u64_t len, char* target, u32_t port) {
 	if ((ret = sendrec_hostname(target, port, buf, len, &rec_buf, &rec_len))
 			< 0) {
 		//printf("TEST Failed : %d\n ", ret);
-		perror("TEST Failed");
+		sbp_perror("TEST Failed");
 		return ret;
 	}
-	printf("Received : %ld\n%s", strlen(rec_buf), rec_buf);
+	printf("Received : %ld\ndata:\n%s", strlen(rec_buf), rec_buf);
+	free(rec_buf);
 	return 0;
 }

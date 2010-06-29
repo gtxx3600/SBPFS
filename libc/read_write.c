@@ -286,13 +286,18 @@ static s64_t write_blocks(struct block_entry* ents, u64_t block_count, char* buf
 		mkent(head,"Arg0",tran_blocknum);
 		mkent(head,"Arg1",tran_offset);
 		mkent(head,"Arg2",tran_len);
-		mkent(head,CONTENT_LEN,"0");
+		mkent(head,CONTENT_LEN,tran_len);
 
 		if (make_head(&data, &data_len, &head) == -1) {
 			seterr(HEAD_ERR,MAKE_HEAD);
 			goto err_exit;
 		}/*data need free*/
 		s64_t sockfd;
+		if(!ents[i].d_nodes[j])
+		{
+			j++;
+			continue;
+		}
 		if((sockfd = sbp_connect(get_dnode_hostname(ents[i].d_nodes[j]), DNODE_SERVICE_PORT)) < 0){
 			seterr(SOCKET_ERR, EST_SOCK);
 			goto err_exit1;
@@ -325,6 +330,13 @@ static s64_t write_blocks(struct block_entry* ents, u64_t block_count, char* buf
 			free(data);
 			free(rec_data);
 			free_head(&head);
+
+			if(j<=REDUNDANCY)
+			{
+				j++;
+				continue;
+			}
+			j=0;
 			i++;
 			continue;
 

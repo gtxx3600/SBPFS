@@ -27,7 +27,7 @@ s32_t sbp_opendir(char* filename) {
 	SBP_PREPARE_REQUEST
 
 	mkent(head,METHOD,"OPEN");
-	mkent(head,ARGC,"3");
+	mkent(head,ARGC,"1");
 	mkent(head,"Arg0",filename);
 	mkent(head,CONTENT_LEN,"0");
 
