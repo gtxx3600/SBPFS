@@ -22,8 +22,11 @@
 #define SOCKET_ERR 		"Socket Error"
 #define MEM_ERR			"Memory Error"
 #define DATA_ERR		"Data Error"
-#define HEAD_ERR	"SBPFS HEAD Error"
+#define HEAD_ERR		"SBPFS HEAD Error"
+#define REQ_ERR			"Request Error"
 
+
+#define FILE_TYPE		"Could not read or write dir"
 #define MAKE_HEAD		"Could not make head"
 #define UNKNOWN_HEAD	"Could not identify data received"
 #define DECODE_HEAD		"Could not decode SBPFS_HEAD"

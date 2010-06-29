@@ -19,9 +19,11 @@
 #ifndef __SBP_LIBC_CONST_H_
 #define __SBP_LIBC_CONST_H_
 
+#define REDUNDANCY				2
+
 #define CNODE_SERVICE_PORT  	9000
 #define DNODE_SERVICE_PORT  	9010
-#define BUF_SIZE  				8192
+#define BUF_SIZE  				4096
 #define CONTENT_LEN 			"Content-Length"
 #define ARGC 					"Argc"
 #define METHOD					"Method"

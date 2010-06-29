@@ -22,6 +22,8 @@
 
 #include "global.h"
 #include "error.h"
+
+
 /* MODE */
 
 #define S_ORD		0x02
@@ -41,20 +43,21 @@
 #define T_DIR		0x01
 #define T_FILE		0x02
 /* APIs */
-
+struct sbp_filestat;
 /* open.c */
 s32_t sbp_open(char* filename, u32_t oflag, u16_t mode);
 s32_t sbp_close(u32_t fd);
 /* dir.c */
 s32_t sbp_opendir(char* dirname);
 s32_t sbp_mkdir(char* dirname);
-s32_t sbp_readdir(u32_t dirfd);//TODO
-s32_t sbp_stat(char* filename);//TODO
+s32_t sbp_rmdir(char* dirname);
+struct sbp_dirent* sbp_readdir(u32_t dirfd);
+struct sbp_filestat* sbp_stat(char* filename);//TODO
 s32_t sbp_closedir(u32_t dirfd);
 
 /*read_write.c*/
-s64_t sbp_read(s64_t fd, void* buf, u64_t len);//TODO
-s64_t sbp_write(s64_t fd,void* buf, u64_t len);//TODO
+s64_t sbp_read(s64_t fd, void* buf, u64_t len);
+s64_t sbp_write(s64_t fd,void* buf, u64_t len);
 
 /*move.c*/
 s32_t sbp_move(char* dst, char* src);
@@ -80,5 +83,22 @@ void sbp_perror(char* s);
 /*login.c*/
 s32_t sbp_getusername(char** username);
 s32_t sbp_getUandP(char** username,char** password);
+
+struct sbp_dirent{
+	u8_t d_type;
+	char d_name[MAX_FILENAME_LEN];
+	u64_t offset;
+};
+struct sbp_filestat {
+	//u64_t	fd;    			/* FD number */
+	//u64_t   nlink;   		/* number of hard links */
+	u64_t   size;   	 	/* total size, in bytes */
+	u64_t 	atime;   		/* time of last access */
+	u64_t   mtime;   		/* time of last modification */
+	u64_t   ctime;   		/* time of last status change */
+	u8_t    mode;    		/* file type & protection */
+	u8_t	owner[MAX_USERNAME_LEN];     		/* user ID/name of owner */
+	u8_t 	preserved[15];
+};
 
 #endif
