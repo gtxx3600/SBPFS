@@ -205,6 +205,7 @@ s64_t get_missing_len(char* buf,u64_t received_bytes) {
 	}
 	content_len[content_len_end - content_len_start] = 0;
 	content_length = atoll(content_len);
+
 	//printf("missing length : %lld content_length:%lld header_len: %lld received_len: %lld\n ",(content_length + header_length - received_bytes),content_length,header_length,received_bytes);
 	return content_length + header_length - received_bytes;
 
@@ -355,6 +356,7 @@ char* get_head_entry_value(struct sbpfs_head* head,char* entry)
 		{
 			return head->entrys[i].value;
 		}
+		i++;
 	}
 	return NULL;
 }
