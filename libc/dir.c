@@ -26,7 +26,7 @@ s32_t sbp_opendir(char* filename) {
 	s32_t fd = get_slot();
 	SBP_PREPARE_REQUEST
 
-	mkent(head,METHOD,"OPEN");
+	mkent(head,METHOD,"OPENDIR");
 	mkent(head,ARGC,"1");
 	mkent(head,"Arg0",filename);
 	mkent(head,CONTENT_LEN,"0");
@@ -49,18 +49,31 @@ s32_t sbp_opendir(char* filename) {
 		fds[fd]->filename[strlen(filename)] = 0;
 		fds[fd]->offset = 0;
 		fds[fd]->type = T_DIR;
-		fds[fd]->server_fd = atoll(get_head_entry_value(&head, FILE_DESC));
-		char* auth_code = get_head_entry_value(&head, AUTH_CODE);
-		if (auth_code == NULL) {
-			seterr(DATA_ERR,AUTH_LEN);
+		char* fd_s = get_head_entry_value(&head, DIR_FD);
+		if(fd_s == NULL)
+		{
+			seterr(DATA_ERR,"Could not get FD");
 			goto err_exit4;
 		}
-		int auth_len = strlen(auth_code);
-		if (auth_len > AUTH_CODE_LEN) {
-			seterr(DATA_ERR,AUTH_LEN);
+		fds[fd]->server_fd = atoll(fd_s);
+//		char* auth_code = get_head_entry_value(&head, AUTH_CODE);
+//		if (auth_code == NULL) {
+//			seterr(DATA_ERR,AUTH_LEN);
+//			goto err_exit4;
+//		}
+		char* dir_ent_num = get_head_entry_value(&head, DIR_ENT_NUM);
+		if (dir_ent_num == NULL)
+		{
+			seterr(DATA_ERR,DIR_ENT_LEN);
 			goto err_exit4;
 		}
-		memcpy(fds[fd]->auth_code, auth_code, auth_len);
+		fds[fd]->length = atoll(dir_ent_num);
+//		int auth_len = strlen(auth_code);
+//		if (auth_len > AUTH_CODE_LEN) {
+//			seterr(DATA_ERR,AUTH_LEN);
+//			goto err_exit4;
+//		}
+//		memcpy(fds[fd]->auth_code, auth_code, auth_len);
 
 		goto ok_exit;
 	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
@@ -70,7 +83,7 @@ s32_t sbp_opendir(char* filename) {
 		seterr(HEAD_ERR, UNKNOWN_HEAD);
 	}
 
-	err_exit4: sbp_close(fd);
+	err_exit4: sbp_closedir(fd);
 	err_exit3: free_head(&head);
 	err_exit2: free(rec_data);
 	err_exit1: free(data);
@@ -86,12 +99,45 @@ s32_t sbp_opendir(char* filename) {
 
 }
 s32_t sbp_closedir(u32_t dirfd){
-	if (fds[dirfd]->type == T_DIR)
-		return sbp_close(dirfd);
-	else
+
+	if (fds[dirfd] == NULL)
 		return -1;
+	if (fds[dirfd]->type != T_DIR)
+		return -1;
+	char tran_fd[32];
+
+	SBP_PREPARE_REQUEST
+
+	sprintf(tran_fd, "%lld", fds[dirfd]->server_fd);
+	mkent(head,METHOD,"CLOSEDIR");
+	mkent(head,ARGC,"1");
+	mkent(head,"Arg0",tran_fd);
+	//mkent(head,"Arg1",fds[fd]->auth_code);
+	mkent(head,CONTENT_LEN,"0");
+
+	SBP_SEND_AND_PROCESS_REPLY
+	SBP_PROCESS_RESULT
+
+	err_exit3: free_head(&head);
+	err_exit2: free(rec_data);
+	err_exit1: free(data);
+	err_exit: free(usr);
+	free(pass);
+	free_sbpfd(fds[dirfd]);
+	fds[dirfd] = NULL;
+	return -1;
+	ok_exit: free(data);
+	free(rec_data);
+	free_head(&head);
+	free(usr);
+	free(pass);
+	free_sbpfd(fds[dirfd]);
+	fds[dirfd] = NULL;
+	return 0;
 }
 struct sbp_dirent* sbp_readdir(u32_t dirfd) {
+	printf("readdir \n");
+	if(dirfd<0)return NULL;
 	if (fds[dirfd] == NULL) {
 		return NULL;
 	}

@@ -48,6 +48,7 @@
 #define FIND_CONTENT_LEN	"Could not find 'Content-length'"
 #define SLOT_FULL		"Could not find a free file_desc slot"
 #define AUTH_LEN		"Auth-code length not match"
+#define DIR_ENT_LEN		"Could not get dir entry number"
 #define NO_CONTENT_LEN	"Missing Content-Length Entry"
 
 

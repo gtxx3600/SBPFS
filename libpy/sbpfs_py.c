@@ -160,11 +160,13 @@ PyObject *wrap_sbp_test(PyObject *self, PyObject *args)
 	unsigned long long len;
 	char * target;
 	unsigned int port;
-	int result;
+	char* result;
 	if (!PyArg_ParseTuple(args, "sKsI", &data,&len,&target,&port))
-		return NULL;
+		return Py_BuildValue("");
 	result = sbp_test(data,len,target,port);
-	return Py_BuildValue("i", result);
+	if(result == NULL)
+		return Py_BuildValue("");
+	return Py_BuildValue("s#", result, 8000);
 }
 PyObject *wrap_sbp_perror(PyObject *self, PyObject *args)
 {
@@ -210,6 +212,32 @@ PyObject *wrap_sbp_move(PyObject *self, PyObject *args)
 	result = sbp_move(dst,src);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_stat(PyObject *self, PyObject *args)
+{
+	char *filename;
+
+	if (!PyArg_ParseTuple(args, "s",&filename))
+		return Py_BuildValue("");
+	struct sbp_filestat * ret = sbp_stat(filename);
+	if(ret == NULL)
+	{
+		return Py_BuildValue("");
+	}
+	PyObject* pDict = PyDict_New();
+	PyDict_SetItemString(pDict, "size",
+	                     Py_BuildValue("K", ret->size));
+	PyDict_SetItemString(pDict, "access_time",
+	                     Py_BuildValue("K", ret->atime));
+	PyDict_SetItemString(pDict, "modify_time",
+	                     Py_BuildValue("K", ret->mtime));
+	PyDict_SetItemString(pDict, "create_time",
+	                     Py_BuildValue("K", ret->ctime));
+	PyDict_SetItemString(pDict, "mode",
+	                     Py_BuildValue("B", ret->mode));
+	PyDict_SetItemString(pDict, "onwer",
+	                     Py_BuildValue("s", ret->owner));
+	return pDict;
+}
 PyObject *wrap_sbp_close(PyObject *self, PyObject *args)
 {
 	int fd;
@@ -242,6 +270,7 @@ static PyMethodDef cpymodMethods[] =
 	{"rmdir",wrap_sbp_rmdir, METH_VARARGS, "rmdir(dirname)"},
 	{"read",wrap_sbp_read, METH_VARARGS, "read(fd,length) return string"},
 	{"readdir",wrap_sbp_readdir, METH_VARARGS, "readdir() return (offset_in_dir(number), file_type(string), filename(string))"},
+	{"stat",wrap_sbp_stat, METH_VARARGS, "stat() return dict:{size:xx,atime:xx,mtime:xx,ctime:xx,mode:xx,owner:xx}"},
 	{"write",wrap_sbp_write, METH_VARARGS, "write(fd,data,length) on error, return length of sent data"},
 	{"open",wrap_sbp_open, METH_VARARGS, "open(filename,oflag,mode) return fd"},
 	{"opendir",wrap_sbp_opendir, METH_VARARGS, "opendir(dirname) return fd"},

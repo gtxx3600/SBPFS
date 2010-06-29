@@ -29,8 +29,8 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 
 	SBP_PREPARE_REQUEST
 
-	sprintf(tran_oflag, "%08x", oflag);
-	sprintf(tran_mode, "%04x", mode);
+	sprintf(tran_oflag, "%08d", oflag);
+	sprintf(tran_mode, "%04d", mode);
 
 	mkent(head,METHOD,"OPEN");
 	mkent(head,ARGC,"3");
@@ -42,6 +42,7 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 	SBP_SEND_AND_PROCESS_REPLY
 
 	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
+		printf("reply ok\n");
 		if ((fds[fd] = (struct sbp_filedesc *) malloc(
 				sizeof(struct sbp_filedesc))) == NULL) {
 			seterr(MEM_ERR,MALLOC);
@@ -58,7 +59,12 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 		fds[fd]->oflag = oflag;
 		fds[fd]->offset = 0;
 		fds[fd]->type = T_FILE;
-		fds[fd]->server_fd = atoll(get_head_entry_value(&head, FILE_DESC));
+		char* fd_s = get_head_entry_value(&head, FILE_DESC);
+		if(fd_s == NULL)
+		{
+			goto err_exit4;
+		}
+		fds[fd]->server_fd = atoll(fd_s);
 		char* auth_code = get_head_entry_value(&head, AUTH_CODE);
 		if (auth_code == NULL) {
 			seterr(DATA_ERR,AUTH_LEN);
@@ -167,9 +173,9 @@ s32_t sbp_close(u32_t fd) {
 
 	sprintf(tran_fd, "%lld", fds[fd]->server_fd);
 	mkent(head,METHOD,"CLOSE");
-	mkent(head,ARGC,"2");
+	mkent(head,ARGC,"1");
 	mkent(head,"Arg0",tran_fd);
-	mkent(head,"Arg1",fds[fd]->auth_code);
+	//mkent(head,"Arg1",fds[fd]->auth_code);
 	mkent(head,CONTENT_LEN,"0");
 
 	SBP_SEND_AND_PROCESS_REPLY
@@ -188,12 +194,12 @@ s32_t sbp_close(u32_t fd) {
 	free_head(&head);
 	free(usr);
 	free(pass);
-	free_sbpfd(fds[fd]);
-	fds[fd] = NULL;
+	//free_sbpfd(fds[fd]);
+	//fds[fd] = NULL;
 	return 0;
 }
 
-s32_t sbp_test(char* buf, u64_t len, char* target, u32_t port) {
+char* sbp_test(char* buf, u64_t len, char* target, u32_t port) {
 	char* rec_buf;
 	u64_t rec_len;
 	int ret = 0;
@@ -201,9 +207,10 @@ s32_t sbp_test(char* buf, u64_t len, char* target, u32_t port) {
 			< 0) {
 		//printf("TEST Failed : %d\n ", ret);
 		sbp_perror("TEST Failed");
-		return ret;
+		return NULL;
 	}
-	printf("Received : %ld\ndata:\n%s", strlen(rec_buf), rec_buf);
-	free(rec_buf);
-	return 0;
+	//printf("Received : %ld\ndata:\n%s", strlen(rec_buf), rec_buf);
+	//free(rec_buf);
+
+	return rec_buf;
 }

@@ -52,7 +52,7 @@ s32_t sbp_opendir(char* dirname);
 s32_t sbp_mkdir(char* dirname);
 s32_t sbp_rmdir(char* dirname);
 struct sbp_dirent* sbp_readdir(u32_t dirfd);
-struct sbp_filestat* sbp_stat(char* filename);//TODO
+struct sbp_filestat* sbp_stat(char* filename);
 s32_t sbp_closedir(u32_t dirfd);
 
 /*read_write.c*/
@@ -74,7 +74,7 @@ s32_t sbp_chown(char* filename, char* newowner);
 /*login.c*/
 s32_t sbp_login(char* username, char* password);
 s32_t sbp_sethost(char* hostname);
-s32_t sbp_test(char* buf, u64_t len, char* target ,u32_t port);
+char* sbp_test(char* buf, u64_t len, char* target ,u32_t port);
 
 
 /*TOOLS*/

@@ -24,6 +24,7 @@ static s64_t read_blocks(struct block_entry* ents, u64_t block_count, char* buf,
 static s64_t write_blocks(struct block_entry* ents, u64_t block_count, char* buf, char* auth_code);
 static s64_t sbp_read_or_write(s64_t fd,void* buf, u64_t len,char* method);
 s64_t sbp_read(s64_t fd, void* buf, u64_t len){
+	if(fd<0)return -1;
 	if(fds[fd]->type == T_FILE)
 		return sbp_read_or_write(fd,buf,len,"READ");
 	else{
@@ -33,6 +34,7 @@ s64_t sbp_read(s64_t fd, void* buf, u64_t len){
 }
 
 s64_t sbp_write(s64_t fd,void* buf, u64_t len){
+	if(fd < 0)return -1;
 	if(fds[fd]->type == T_FILE)
 		return sbp_read_or_write(fd,buf,len,"WRITE");
 	else{
@@ -266,6 +268,7 @@ static s64_t write_blocks(struct block_entry* ents, u64_t block_count, char* buf
 	}
 	sprintf(tran_usr, "Client_%s", usr);
 	int j = 0;
+	//retry:
 	while(i< block_count){
 		u64_t rec_len = 0;
 		int data_len = 0;

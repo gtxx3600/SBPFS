@@ -41,6 +41,7 @@ struct sbp_filedesc
 	u64_t server_fd;
 	u64_t offset;
 	u32_t oflag;
+	u64_t length;
 	u8_t  type;
 
 	char* filename;

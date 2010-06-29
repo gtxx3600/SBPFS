@@ -35,8 +35,10 @@
 #define REQUEST_ERR				"SBPFS/1.0 ERROR"
 #define ERR_TYPE				"Error-Type"
 #define ERR_DETAIL				"Error-Detail"
-#define AUTH_CODE				"Auth-code"
-#define FILE_DESC				"File-desc"
+#define AUTH_CODE				"Auth-Code"
+#define FILE_DESC				"FD"
+#define DIR_FD					"DirFD"
+#define DIR_ENT_NUM				"DirEntryNum"
 
 #define HEADER_FLAG				"\r\n\r\n"
 #define MAX_USERNAME_LEN		16
