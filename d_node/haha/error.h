@@ -48,14 +48,13 @@
 #define FIND_CONTENT_LEN	"Could not find 'Content-length'"
 #define SLOT_FULL		"Could not find a free file_desc slot"
 #define AUTH_LEN		"Auth-code length not match"
-#define DIR_ENT_LEN		"Could not get dir entry number"
 #define NO_CONTENT_LEN	"Missing Content-Length Entry"
 
 
 #define seterr(type,detail) sbp_seterr(type,detail,__FILE__,__LINE__,__FUNCTION__)
 void sbp_seterr(char* type, char* detail,const char* file, int line, const char* func);
 void sbp_update_err(struct sbpfs_head* head);
-
+void sbp_perror(char* s);
 struct sbp_err{
 	int 	line;
 	struct sbp_err * next;

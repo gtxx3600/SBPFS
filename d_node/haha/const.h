@@ -35,10 +35,12 @@
 #define REQUEST_ERR				"SBPFS/1.0 ERROR"
 #define ERR_TYPE				"Error-Type"
 #define ERR_DETAIL				"Error-Detail"
-#define AUTH_CODE				"Auth-Code"
-#define FILE_DESC				"FD"
-#define DIR_FD					"DirFD"
-#define DIR_ENT_NUM				"DirEntryNum"
+#define AUTH_CODE				"Auth-code"
+#define FILE_DESC				"File-desc"
+
+
+#define ROOTPATH 				"/home/hhf/blocks/"
+#define BLOCKLISTPATH 			"/home/hhf/blocklist"
 
 #define HEADER_FLAG				"\r\n\r\n"
 #define MAX_USERNAME_LEN		16
@@ -54,13 +56,13 @@
 /* CLICK SIZE is 16MB (16*1024*1024)*/
 #define CLICK_SIZE				16777216
 
-typedef unsigned long long 		u64_t;
-typedef long long 				s64_t;
-typedef unsigned int			u32_t;
-typedef int						s32_t;
-typedef unsigned short			u16_t;
-typedef short					s16_t;
-typedef unsigned char			u8_t;
-typedef char					s8_t;
+typedef unsigned long long u64_t;
+typedef long long s64_t;
+typedef unsigned int u32_t;
+typedef int s32_t;
+typedef unsigned short u16_t;
+typedef short s16_t;
+typedef unsigned char u8_t;
+typedef char s8_t;
 
 #endif

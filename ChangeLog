@@ -1,8 +1,9 @@
 2010-06-30 CHEN Yangyang <skabyy@gmail.com>
 
-	* implement cfs(control file system)
-    * Add these APIs: read, readdir, write, remove, move, open, opendir, 
-      close, closedir, chown, chmod and stat
+    * implement cfs(control file system)
+    * Add these APIs:
+        read, readdir, write, remove, move, open, opendir, 
+        close, closedir, chown, chmod and stat
     * Add a dynamic control of data nodes and 
       get rid of the data nodes configure file
     * Make all things of control node work
@@ -11,6 +12,18 @@
 
     * Add mkdir and rmdir
     * fix some bugs
+
+2010-06-30 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
+
+    * Finish d_node 
+
+2010-06-29 HAN Haofu <gtxx3600@gmail.com>
+
+    * Finish libc
+
+2010-06-22 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
+
+    * Finish the connection 
 
 2010-06-20 CHEN Xiaoyang <xiaoyang.chen.sh@gmail.com>
 

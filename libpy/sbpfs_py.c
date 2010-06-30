@@ -18,7 +18,7 @@
 
 #include <Python.h>
 #include <sbpfs.h>
-
+char* sbp_test(char* buf, u64_t len, char* target ,u32_t port);
 PyObject *wrap_sbp_login(PyObject *self, PyObject *args)
 {
 	char *username,*password;
@@ -82,6 +82,7 @@ PyObject *wrap_sbp_open(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "sIb", &filename, &oflag,&mode))
 		return NULL;
 	result = sbp_open(filename,oflag,mode);
+
 	return Py_BuildValue("i", result);
 }
 PyObject *wrap_sbp_readdir(PyObject *self, PyObject *args)
@@ -133,14 +134,15 @@ PyObject *wrap_sbp_write(PyObject *self, PyObject *args)
 	int fd;
 	unsigned long long length;
 	char *send_buf;
+	int len;
 	unsigned long long result;
-	if (!PyArg_ParseTuple(args, "isK", &fd, &send_buf, &length))
+	if (!PyArg_ParseTuple(args, "it#K", &fd, &send_buf,&len, &length))
 		return NULL;
 
 	result = sbp_write(fd,send_buf,length);
 	if(result == length)
 	{
-		return Py_BuildValue("");
+		return Py_BuildValue("i", result);
 	}
 
 	return Py_BuildValue("i", result);
@@ -153,6 +155,20 @@ PyObject *wrap_sbp_opendir(PyObject *self, PyObject *args)
 		return NULL;
 	result = sbp_opendir(filename);
 	return Py_BuildValue("i", result);
+}
+PyObject *wrap_sbp_test(PyObject *self, PyObject *args)
+{
+	char *data;
+	unsigned long long len;
+	char * target;
+	unsigned int port;
+	char* result;
+	if (!PyArg_ParseTuple(args, "sKsI", &data,&len,&target,&port))
+		return Py_BuildValue("");
+	result = sbp_test(data,len,target,port);
+	if(result == NULL)
+		return Py_BuildValue("");
+	return Py_BuildValue("s#", result, 8000);
 }
 PyObject *wrap_sbp_perror(PyObject *self, PyObject *args)
 {
@@ -169,6 +185,16 @@ PyObject *wrap_sbp_remove(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "s", &filename))
 			return NULL;
 	result = sbp_remove(filename);
+	return Py_BuildValue("i", result);
+}
+PyObject *wrap_sbp_seek(PyObject *self, PyObject *args)
+{
+	u64_t fd;
+	u64_t offset;
+ 	int result;
+	if (!PyArg_ParseTuple(args, "KK", &fd, &offset))
+			return NULL;
+	result = sbp_seek(fd,offset);
 	return Py_BuildValue("i", result);
 }
 PyObject *wrap_sbp_mkdir(PyObject *self, PyObject *args)
@@ -198,6 +224,32 @@ PyObject *wrap_sbp_move(PyObject *self, PyObject *args)
 	result = sbp_move(dst,src);
 	return Py_BuildValue("i", result);
 }
+PyObject *wrap_sbp_stat(PyObject *self, PyObject *args)
+{
+	char *filename;
+
+	if (!PyArg_ParseTuple(args, "s",&filename))
+		return Py_BuildValue("");
+	struct sbp_filestat * ret = sbp_stat(filename);
+	if(ret == NULL)
+	{
+		return Py_BuildValue("");
+	}
+	PyObject* pDict = PyDict_New();
+	PyDict_SetItemString(pDict, "size",
+	                     Py_BuildValue("K", ret->size));
+	PyDict_SetItemString(pDict, "access_time",
+	                     Py_BuildValue("K", ret->atime));
+	PyDict_SetItemString(pDict, "modify_time",
+	                     Py_BuildValue("K", ret->mtime));
+	PyDict_SetItemString(pDict, "create_time",
+	                     Py_BuildValue("K", ret->ctime));
+	PyDict_SetItemString(pDict, "mode",
+	                     Py_BuildValue("B", ret->mode));
+	PyDict_SetItemString(pDict, "owner",
+	                     Py_BuildValue("i", ret->owner));
+	return pDict;
+}
 PyObject *wrap_sbp_close(PyObject *self, PyObject *args)
 {
 	int fd;
@@ -216,23 +268,26 @@ PyObject *wrap_sbp_closedir(PyObject *self, PyObject *args)
 }
 static PyMethodDef cpymodMethods[] =
 {
-	{"login", wrap_sbp_login, METH_VARARGS, "Login(user,pass)"},
-	{"sethost", wrap_sbp_sethost, METH_VARARGS, "sethost(hostname)"},
-	{"getUserAndPassword", wrap_sbp_getUandP, METH_VARARGS, "getUandP() return {'username':'xxx','password':'xxx'}"},
-	{"chmod", wrap_sbp_chmod, METH_VARARGS, "chmod(filename,mode)"},
-	{"chown", wrap_sbp_chown, METH_VARARGS, "chown(filename,newuser)"},
-	{"perror", wrap_sbp_perror, METH_VARARGS, "perror() print error detail"},
-	{"remove", wrap_sbp_remove, METH_VARARGS, "remove(filename)"},
-	{"move", wrap_sbp_move, METH_VARARGS, "move(dst,src)"},
-	{"closedir",wrap_sbp_closedir, METH_VARARGS, "closedir(dirfd)"},
-	{"close",wrap_sbp_close, METH_VARARGS, "close(fd)"},
-	{"mkdir",wrap_sbp_mkdir, METH_VARARGS, "mkdir(dirname)"},
-	{"rmdir",wrap_sbp_rmdir, METH_VARARGS, "rmdir(dirname)"},
-	{"read",wrap_sbp_read, METH_VARARGS, "read(fd,length) return string"},
-	{"readdir",wrap_sbp_readdir, METH_VARARGS, "readdir() return (offset_in_dir(number), file_type(string), filename(string))"},
-	{"write",wrap_sbp_write, METH_VARARGS, "write(fd,data,length) on error, return length of sent data"},
-	{"open",wrap_sbp_open, METH_VARARGS, "open(filename,oflag,mode) return fd"},
-	{"opendir",wrap_sbp_opendir, METH_VARARGS, "opendir(dirname) return fd"},
+	{"login", 	wrap_sbp_login, 	METH_VARARGS, "Login(user,pass)"},
+	{"sethost", wrap_sbp_sethost, 	METH_VARARGS, "sethost(hostname)"},
+	{"getUAndP",wrap_sbp_getUandP, 	METH_VARARGS, "return {'username':'xxx','password':'xxx'}"},
+	{"chmod", 	wrap_sbp_chmod, 	METH_VARARGS, "chmod(filename,mode)"},
+	{"chown", 	wrap_sbp_chown, 	METH_VARARGS, "chown(filename,newuser)"},
+	{"perror", 	wrap_sbp_perror, 	METH_VARARGS, "perror() print error detail"},
+	{"remove", 	wrap_sbp_remove, 	METH_VARARGS, "remove(filename)"},
+	{"move", 	wrap_sbp_move, 		METH_VARARGS, "move(dst,src)"},
+	{"closedir",wrap_sbp_closedir, 	METH_VARARGS, "closedir(dirfd)"},
+	{"close",	wrap_sbp_close, 	METH_VARARGS, "close(fd)"},
+	{"mkdir",	wrap_sbp_mkdir, 	METH_VARARGS, "mkdir(dirname)"},
+	{"rmdir",	wrap_sbp_rmdir, 	METH_VARARGS, "rmdir(dirname)"},
+	{"read",	wrap_sbp_read, 		METH_VARARGS, "read(fd,length) return string"},
+	{"readdir",	wrap_sbp_readdir, 	METH_VARARGS, "readdir() return tuple"},
+	{"stat",	wrap_sbp_stat, 		METH_VARARGS, "stat() return dict"},
+	{"write",	wrap_sbp_write, 	METH_VARARGS, "write(fd,data,length)"},
+	{"open",	wrap_sbp_open, 		METH_VARARGS, "open(filename,oflag,mode) return fd"},
+	{"opendir", wrap_sbp_opendir, 	METH_VARARGS, "opendir(dirname) return fd"},
+	{"test", 	wrap_sbp_test, 		METH_VARARGS, "test(xxxxx) return int"},
+	{"seek", 	wrap_sbp_seek, 		METH_VARARGS, "seek()"},
 	{NULL, NULL}
 };
 

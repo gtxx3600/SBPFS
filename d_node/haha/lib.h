@@ -41,7 +41,6 @@ struct sbp_filedesc
 	u64_t server_fd;
 	u64_t offset;
 	u32_t oflag;
-	u64_t length;
 	u8_t  type;
 
 	char* filename;
@@ -70,7 +69,7 @@ struct block_entry{
 	u32_t offset_in_block;
 	u32_t length_in_block;
 	u32_t d_nodes[REDUNDANCY + 1];
-	u32_t preserved;
+
 };
 #define mkent(head,n,val)  head.entrys[head.entry_num].name = n;\
 	head.entrys[head.entry_num++].value = val;
