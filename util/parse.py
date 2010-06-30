@@ -27,6 +27,32 @@ def gen_head(fl, d):
     lines.append('\r\n')
     return '\r\n'.join(lines)
 
+def dump_data(data):
+    buffer = ''
+    hexes = map(ord, data)
+    addr = 0
+    ascii = ''
+    def __try_ascii(hex):
+        if 32 <= hex < 127:
+            return chr(hex)
+        else:
+            return '.'
+    for hex in hexes:
+        if addr % 0x10 == 0:
+            if ascii:
+                buffer += '  %s\n' % ascii
+                ascii = ''
+            buffer += '%04X  ' % addr
+        addr += 1
+        ascii += __try_ascii(hex)
+        buffer += '%02X ' % hex
+    if ascii:
+        left = 0x10 - addr % 0x10
+        if left == 0x10: left = 0
+        buffer += '   ' * left
+        buffer += '  %s\n' % ascii
+    return buffer
+
 def parse_head(s):
     try:
         d = {}
