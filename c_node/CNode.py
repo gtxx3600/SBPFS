@@ -19,6 +19,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 import socket
+import struct
 import sys
 import threading
 
@@ -33,6 +34,7 @@ from util.sbpfs import *
 
 HOST = ''
 CLIENT_PORT = 9000
+MAX_FILENAME = 256
 PASSWD = 'config/passwd'
 DTREE = 'vdisk/dtree.vd'
 INODE = 'vdisk/inode.vd'
@@ -89,7 +91,7 @@ class CtrlNode:
         self.dtree = DTree(dtree_vd, inode_vd)
     
     def __save_dtree(self):
-        self.dtree.close()
+        self.dtree.dt_close()
     
     def __init_socket(self):
         try:
@@ -130,6 +132,7 @@ class Connection(threading.Thread):
         self.start()
     
     def __quit(self):
+        debug('Disconnect %s' % self.addr[0])
         self.conn.close()
     
     def run(self):
@@ -211,11 +214,15 @@ class Connection(threading.Thread):
         head_s = gen_head(statusline, d)
         try:
             debug(head_s, 1)
+            debug('Totally send %d bytes' % len(head_s))
             self.conn.send(head_s)
         except:
-            pass
+            import traceback
+            traceback.print_exc(file=sys.stderr)
     
     def __sendhugeerr(self, type, detail):
+        '''debug'''
+        
         statusline = 'SBPFS/1.0 ERROR'
         d = {}
         d['User'] = 'CNode_0'
@@ -232,16 +239,24 @@ class Connection(threading.Thread):
             pass
     
     def __sendok(self):
+        self.__sendrep()
+    
+    def __sendrep(self, d={}, data=''):
+        assert type(d) == dict
         statusline = 'SBPFS/1.0 OK'
-        d = {}
         d['User'] = 'CNode_0'
-        d['Content-Length'] = 0
+        d['Content-Length'] = len(data)
         head_s = gen_head(statusline, d)
         try:
             debug(head_s, 1)
+            if data:
+                debug('\n%s'%dump_data(data), 1)
+            debug('Totally send %d bytes' % (len(head_s)+len(data)), 1)
             self.conn.send(head_s)
+            self.conn.send(data)
         except:
-            pass
+            import traceback
+            traceback.print_exc(file=sys.stderr)
     
     def __handle_client(self, user_info, head, data):
         def check_missing_key(key, type, detail):
@@ -294,6 +309,8 @@ class Connection(threading.Thread):
             do_method[method](*args)
         except TypeError as e:
             self.__senderr('ArguementError', '%s' % e)
+        except ValueError as e:
+            self.__senderr('ArguementError', 'Wrong type')
     
     def __handle_dnode(self, head, data):
         pass
@@ -301,44 +318,108 @@ class Connection(threading.Thread):
     def __handle_unknown(self, head, data):
         self.__senderr('UserNameError', 'Unknown user')
     
-    def __read(self, fd, offset, length):
-        debug('__reand(%s, %s, %s)' % (fd, offset, length))
-    def __readdir(self, dd, en):
-        debug('__readdir(%s, %s)' % (dd, en))
-    def __write(self, fd, offset, length):
-        debug('__write(%s, %s, %s)' % (fd, offset, length))
-    def __remove(self, filename):
-        debug('__remove(%s)' % filename)
-    def __move(self, dst, src):
-        debug('__move(%s, %s)' % (dst, src))
-    def __mkdir(self, dirname):
-        debug('__mkdir(%s)' % dirname)
+    def __generic_do_method(self, dt_method, *args):
         try:
-            self.dtree.mkdir(dirname, self.uid)
-            self.__sendok()
-        except DTreeError as e:
-            self.__sendhugeerr(e.type, e.msg)
-
-    def __rmdir(self, dirname):
-        debug('__rmdir(%s)' % dirname)
-        try:
-            self.dtree.rmdir(dirname, self.uid)
+            dt_method(*args)
             self.__sendok()
         except DTreeError as e:
             self.__senderr(e.type, e.msg)
+            
+    def __read(self, fd, offset, length):
+        debug('__reand(%s, %s, %s)' % (fd, offset, length))
+        try:
+            data = self.dtree.read(fd, offset, length, self.uid)
+            self.__sendrep({}, data)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+
+    def __readdir(self, dd, en):
+        debug('__readdir(%s, %s)' % (dd, en))
+        try:
+            name, type = self.dtree.readdir(dd, en, self.uid)
+            data = struct.pack('B%ds'%MAX_FILENAME, type, name)
+            self.__sendrep({}, data)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+        
+    def __write(self, fd, offset, length):
+        debug('__write(%s, %s, %s)' % (fd, offset, length))
+        try:
+            data = self.dtree.write(fd, offset, length, self.uid)
+            self.__sendrep({}, data)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+        
+    def __remove(self, filename):
+        debug('__remove(%s)' % filename)
+        self.__generic_do_method(self.dtree.remove, 
+                                 filename, self.uid)
+        
+    def __move(self, dst, src):
+        debug('__move(%s, %s)' % (dst, src))
+        self.__generic_do_method(self.dtree.move, 
+                                 dst, src, self.uid)
+        
+    def __mkdir(self, dirname):
+        debug('__mkdir(%s)' % dirname)
+        self.__generic_do_method(self.dtree.mkdir, 
+                                 dirname, self.uid)
+
+    def __rmdir(self, dirname):
+        debug('__rmdir(%s)' % dirname)
+        self.__generic_do_method(self.dtree.rmdir, 
+                                 dirname, self.uid)
         
     def __open(self, filename, oflags, mode):
         debug('__open(%s, %s, %s)' % (filename, oflags, mode))
+        try:
+            fd = self.dtree.open(filename, oflags, mode, self.uid)
+            d = {}
+            d['FD'] = str(fd)
+            d['Auth-Code'] = 'x' * 32
+            self.__sendrep(d)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+        
     def __opendir(self, dirname):
         debug('__opendir(%s)' % dirname)
+        try:
+            fd, entnum = self.dtree.opendir(dirname, self.uid)
+            d = {}
+            d['DirFD'] = str(fd)
+            d['DirEntryNum'] = entnum
+            self.__sendrep(d)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)
+        
     def __close(self, fd):
         debug('__close(%s)' % fd)
-    def __closedir(self, fd):
+        self.__generic_do_method(self.dtree.close, 
+                                 fd, self.uid)
+        
+    def __closedir(self, dd):
         debug('__closedir(%s)' % dd)
+        self.__generic_do_method(self.dtree.closedir, 
+                                 dd, self.uid)
+
     def __chown(self, filename, username):
         debug('__chown(%s, %s)' % (filename, username))
-#        self.conn.send('SBPFS/1.0 OK\r\n\r\n')
+        newuid = self.users_info.find_uid(username)
+        if newuid == None:
+            self.__senderr('InvalidUser', 'invalid user: %s' % username)
+            return
+        self.__generic_do_method(self.dtree.chown,
+                                 filename, newuid, self.uid)
+        
     def __chmod(self, filename, mode):
         debug('__chmod(%s, %s)' % (filename, mode))
+        self.__generic_do_method(self.dtree.chmod,
+                                 filename, mode, self.uid)
+        
     def __stat(self, filename):
         debug('__stat(%s)' % filename)
+        try:
+            data = self.dtree.stat(filename, self.uid)
+            self.__sendrep({}, data)
+        except DTreeError as e:
+            self.__senderr(e.type, e.msg)

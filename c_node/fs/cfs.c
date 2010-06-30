@@ -54,6 +54,8 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 static int c_lookup(dtree_t *dt, char *path, u32_t uid, file_entry_t *ret);
 static int extend(dtree_t *dt, u64_t newsize);
 static void do_mkcfs(dtree_t *dt, unsigned int size, unsigned int bytsPerSec);
+static int initfile(dtree_t *dt, u32_t uid,
+		file_entry_t *file_entry, file_entry_t *parent, u8_t mode);
 static int initdir(dtree_t *dt, u32_t uid,
 		file_entry_t *file_entry, file_entry_t *parent);
 static u32_t next_free_fat(u32_t base, fat_t *fat, u32_t fat_num);
@@ -81,6 +83,34 @@ static int permission_check(u32_t uid, file_meta_t *meta, u8_t op)
 	}
 }
 
+static int gen_ip_index(int max) {
+	static int i = -1;
+	if (i == -1) i = random();
+	return (i++) % max;
+}
+
+static u64_t up_div(u64_t a, u64_t b)
+{
+	return (a+b-1) / b;
+}
+
+static void alloc_block(dtree_t *dt, u32_t *ips, int max,
+		file_block_t *block) {
+	u32_t ip;
+	int i;
+	memset(block, 0, sizeof(file_block_t));
+	for (i = 0; i < NR_COPY; i++) {
+		ip = ips[gen_ip_index(max)];
+		block->ip[i] = ip;
+		if (ip == block->ip[0]) {
+			break;
+		}
+	}
+	block->block_num = dt->sb->maxBlockNum++;
+	block->offset = 0;
+	block->flags |= EXIST;
+}
+
 static int own_check(u32_t uid, u32_t oid)
 {
 	if (!uid) return 1;
@@ -94,6 +124,8 @@ dtree_t *open_disk(char *dt_name, char *in_name)
 	int bytsPerSec, needmkfs = 0;
 
 	dt = (dtree_t *)malloc(sizeof(dtree_t));
+	if (!dt)
+		return NULL;
 	memset(dt, 0, sizeof(dtree_t));
 
 	dt->dt_buf = load_file(dt_name, &dt_size, &dt_max);
@@ -178,9 +210,674 @@ static char *get_filename_from_path(char *path)
 
 	if (last == -1)
 		return NULL;
-
+//printf("last=%d, %c\n", last, path[last]);
 	path[last] = 0;
 	return &path[last+1];
+}
+
+int c_stat(dtree_t *dt, char *path, u32_t uid, stat_t *st)
+{
+	char *filename;
+	int ret, check;
+	file_entry_t parent, *ofile;
+	file_meta_t pmeta, meta;
+	void *pdata;
+
+//printf("open=%s\n", path);
+	filename = get_filename_from_path(path);
+	if (!filename) {
+		return -1;
+	}
+//printf("filename=%s\n", filename);
+	ret = c_lookup(dt, path, uid, &parent);
+	if (ret)
+		return -1;
+	if (parent.type != S_DIR)
+		return -1;
+
+	memcpy(&pmeta, dt->data + parent.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	check = permission_check(uid, &pmeta, R);
+	if (!check) {
+		return -4;
+	}
+	pdata = malloc(pmeta.blocks * dt->sb->bytsPerSec);
+	if (!pdata)
+		return -9;
+
+	do_readdir(dt, parent.fb, pdata);
+	ofile = find_entry_by_name(pdata, filename);
+	memcpy(&meta, dt->data + ofile->fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+
+	st->atime = meta.r_time;
+	st->ctime = meta.c_time;
+	st->mtime = meta.w_time;
+	st->owner = meta.uid;
+	st->size = meta.flen;
+	st->mode = meta.flags;
+	free(pdata);
+	return 0;
+}
+
+int c_move(dtree_t *dt, char *srcpath, char *dstpath, u32_t uid)
+{
+	char *srcname, *dstname;
+	int ret;
+	u32_t bytsPerSec = dt->sb->bytsPerSec;
+	file_entry_t sparent, dparent, *srcent, *dstent;
+	file_meta_t meta, spmeta, dpmeta;
+	void *spdata, *dpdata;
+
+	srcname = get_filename_from_path(srcpath);
+	if (!srcname) {
+		return 1;
+	}
+	dstname = get_filename_from_path(dstpath);
+	if (!dstname) {
+		return 1;
+	}
+
+	ret = c_lookup(dt, srcpath, uid, &sparent);
+	if (ret)
+		return ret;
+	if (sparent.type != S_DIR)
+		return 1;
+	ret = c_lookup(dt, dstpath, uid, &dparent);
+	if (ret)
+		return ret;
+	if (dparent.type != S_DIR)
+		return 1;
+
+	memcpy(&spmeta, dt->data + sparent.fb*bytsPerSec,
+			sizeof(file_meta_t));
+	memcpy(&dpmeta, dt->data + dparent.fb*bytsPerSec,
+			sizeof(file_meta_t));
+	if (!permission_check(uid, &spmeta, W) ||
+			!permission_check(uid, &dpmeta, W)) {
+		return 4;
+	}
+
+	spdata = malloc((spmeta.blocks+1) * bytsPerSec);
+	if (!spdata)
+		return -9;
+	do_readdir(dt, sparent.fb, spdata);
+	srcent = find_entry_by_name(spdata, srcname);
+	if (!srcent) {
+		free(spdata);
+		return 1; // file not found
+	}
+	dpdata = malloc((dpmeta.blocks+1) * bytsPerSec);
+	if (!dpdata)
+		return -9;
+	do_readdir(dt, dparent.fb, dpdata);
+	dstent = find_entry_by_name(dpdata, dstname);
+	if (dstent) {
+		free(spdata);
+		free(dpdata);
+		return 2;
+	}
+
+	memcpy(&meta, dt->data + srcent->fb*bytsPerSec,
+			sizeof(file_meta_t));
+	if (sparent.fb == dparent.fb) {
+		file_meta_t *pmeta = spdata;
+		pmeta->w_time = time(NULL);
+		strcpy(spdata+pmeta->strlen, dstname);
+		srcent->name = pmeta->strlen;
+		pmeta->strlen += strlen(dstname) + 1;
+		pmeta->flen += strlen(dstname) + 1;
+		do_writedir(dt, sparent.fb, spdata, pmeta->flen);
+		free(spdata);
+		free(dpdata);
+		return 0;
+	} else {
+		file_meta_t *spmeta = spdata;
+		file_meta_t *dpmeta = dpdata;
+		void *tmp = malloc(dpmeta->strlen);
+
+		memcpy(tmp, dpdata+sizeof(file_meta_t)+dpmeta->strbase,
+				dpmeta->strlen);
+		memcpy(dpdata+sizeof(file_meta_t)+dpmeta->strbase, srcent,
+				sizeof(file_entry_t));
+		dpmeta->strbase += sizeof(file_entry_t);
+		memcpy(dpdata+sizeof(file_meta_t)+dpmeta->strbase, tmp,
+				dpmeta->strlen);
+		memcpy(dpdata+sizeof(file_meta_t)+dpmeta->strbase+dpmeta->strlen,
+				dstname, strlen(dstname)+1);
+		dpmeta->strlen += strlen(dstname)+1;
+		free(tmp);
+
+		do_remove_entry(spdata, srcent);
+		if (srcent->type == S_DIR) {
+			dpmeta->count++;
+			spmeta->count--;
+		}
+		do_writedir(dt, sparent.fb, spdata, spmeta->flen);
+		do_writedir(dt, dparent.fb, dpdata, dpmeta->flen);
+		free(spdata);
+		free(dpdata);
+		return 0;
+	}
+}
+
+int c_remove(dtree_t *dt, char *path, u32_t uid)
+{
+	char *filename;
+	int ret;
+	u32_t bytsPerSec = dt->sb->bytsPerSec;
+	file_entry_t parent, *entry;
+	file_meta_t pmeta, meta, *real_pmeta;
+	void *pdata;
+
+	filename = get_filename_from_path(path);
+	if (!filename) {
+		return 1;
+	}
+
+	ret = c_lookup(dt, path, uid, &parent);
+	if (ret)
+		return ret;
+	if (parent.type != S_DIR)
+		return 1;
+
+	memcpy(&pmeta, dt->data + parent.fb*bytsPerSec,
+			sizeof(file_meta_t));
+	if (!permission_check(uid, &pmeta, W)) {
+		return 4;
+	}
+	pdata = malloc(pmeta.blocks * bytsPerSec);
+	if (!pdata)
+		return -9;
+
+	do_readdir(dt, parent.fb, pdata);
+	entry = find_entry_by_name(pdata, filename);
+	if (!entry) {
+		free(pdata);
+		return 1; // file not found
+	}
+	if (entry->type == S_DIR) {
+		free(pdata);
+		return 2; // is a directory
+	}
+
+	memcpy(&meta, dt->data + entry->fb*bytsPerSec,
+			sizeof(file_meta_t));
+
+	real_pmeta = pdata;
+	real_pmeta->count--;
+	reset_fat(entry->fb, dt->fat_p);
+	ret = do_remove_entry(pdata, entry);
+	if (ret) {
+		free(pdata);
+		return ret;
+	}
+	do_writedir(dt, parent.fb, pdata, real_pmeta->flen);
+
+	free(pdata);
+	return 0;
+}
+
+int c_open(dtree_t *dt, char *path, u8_t oflags, u8_t mode, u32_t uid)
+{
+	char *filename;
+	int ret, wcheck, rcheck, check;
+	u32_t bytsPerSec = dt->sb->bytsPerSec, fb;
+	file_entry_t parent, *ofile;
+	file_meta_t pmeta;
+	void *pdata;
+
+//printf("open=%s\n", path);
+	filename = get_filename_from_path(path);
+	if (!filename) {
+		return -1;
+	}
+//printf("filename=%s\n", filename);
+	ret = c_lookup(dt, path, uid, &parent);
+	if (ret)
+		return -1;
+	if (parent.type != S_DIR)
+		return -1;
+
+	memcpy(&pmeta, dt->data + parent.fb*bytsPerSec,
+			sizeof(file_meta_t));
+	wcheck = permission_check(uid, &pmeta, W);
+	rcheck = permission_check(uid, &pmeta, R);
+	check = (wcheck && (oflags|SBP_O_WRONLY)) ||
+			(rcheck && (oflags|SBP_O_RDONLY)) ||
+			(wcheck && rcheck && (oflags|SBP_O_RDWR));
+	if (!check) {
+		return -4;
+	}
+	pdata = malloc(pmeta.blocks * bytsPerSec);
+	if (!pdata)
+		return -9;
+
+	do_readdir(dt, parent.fb, pdata);
+	ofile = find_entry_by_name(pdata, filename);
+	if (!ofile) {
+		if (oflags|SBP_O_CREAT) {
+			file_meta_t *meta;
+			void *buf;
+			u64_t newsize = pmeta.flen + sizeof(file_entry_t) +
+					strlen(filename) + 1;
+			buf = malloc(newsize);
+			if (!buf) {
+				free(pdata);
+				return -9;
+			}
+			meta = buf;
+			memcpy(buf, pdata, sizeof(file_meta_t)+pmeta.strbase);
+			ofile = buf+sizeof(file_meta_t)+pmeta.strbase;
+			ofile->name = pmeta.strlen;
+			ofile->type = S_FIL;
+			initfile(dt, uid, ofile, &parent, mode);
+			meta->strbase += sizeof(file_entry_t);
+			memcpy(buf+sizeof(file_meta_t)+meta->strbase,
+					pdata+sizeof(file_meta_t)+pmeta.strbase, pmeta.strlen);
+			memcpy(buf+sizeof(file_meta_t)+meta->strbase+pmeta.strlen,
+					filename, strlen(filename)+1);
+			meta->strlen += strlen(filename)+1;
+			meta->flen = newsize;
+			meta->blocks = (newsize + bytsPerSec - 1) / bytsPerSec;
+		//	dump_meta(meta);
+			do_writedir(dt, parent.fb, buf, newsize);
+			fb = ofile->fb;
+			free(buf);
+		} else {
+			free(pdata);
+			return -1; // file not found
+		}
+	} else if (ofile->type == S_DIR) {
+		free(pdata);
+		return -2; // is a directory
+	} else {
+
+		fb = ofile->fb;
+	}
+
+	free(pdata);
+	return fb;
+}
+
+int c_read(dtree_t *dt, u32_t fb, u64_t offset, u64_t length, u32_t uid,
+		sendblock_t *blocks)
+{
+	file_meta_t meta, *real_meta;
+	int blocknum;
+	sendblock_t *sblock_ptr = blocks;
+	u64_t offset_1, length_1, newsize;
+	u64_t bufsize;
+	void *buf;
+	int i;
+	file_block_t *fb_p;
+
+//	printf("initsize: %llu, %llu, %llu\n", newsize,  length, offset);
+	memcpy(&meta, dt->data+fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	if (meta.flen < offset+length) {
+//		printf("olllllllllllllllllllllllllllllllll%llu\n", offset+length);
+		newsize = offset+length;
+	} else {
+//		printf("flfffffffffffffffffffffffffff%llu\n", meta.flen);
+		newsize = meta.flen;
+	}
+//	printf("flen: %llu\n", meta.flen);
+	if (meta.flen < offset) {
+		return -1;
+	}
+	length = (length < meta.flen-offset) ?
+			length : meta.flen-offset;
+	bufsize = meta.blocks * dt->sb->bytsPerSec;
+	real_meta = buf = malloc(bufsize);
+	if (!buf) {
+		return -9;
+	}
+	do_readfile(dt, fb, buf);
+	offset_1 = up_div(offset, BLOCKSIZE) * BLOCKSIZE;
+	length_1 = ((length + offset) / BLOCKSIZE) * BLOCKSIZE;
+	blocknum = (length_1 - offset_1) / BLOCKSIZE;
+//printf("num=%d, %llu, %llu\n", blocknum, length, offset);
+//printf("num=%d, %llu, %llu\n", blocknum, length_1, offset_1);
+	if (offset != offset_1) blocknum++;
+	if (offset+length != length_1) blocknum++;
+	fb_p = buf+sizeof(file_meta_t) +
+				(offset/BLOCKSIZE) * sizeof(file_block_t);
+	if (blocknum == 1) {
+		sblock_ptr->block_num = fb_p->block_num;
+		sblock_ptr->offset = offset % BLOCKSIZE;
+		sblock_ptr->length = length;
+//printf("sbp: %d\n", sblock_ptr->length);
+		memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+	} else {
+		for (i = 0; i < blocknum; i++) {
+			sblock_ptr->block_num = fb_p->block_num;
+			if (i == 0) {
+				sblock_ptr->offset = offset%BLOCKSIZE;
+				sblock_ptr->length = BLOCKSIZE - offset;
+			} else if (i == blocknum-1) {
+				sblock_ptr->offset = 0;
+				sblock_ptr->length = ((offset+length)%BLOCKSIZE) ?
+						(offset+length)%BLOCKSIZE : BLOCKSIZE;
+			} else {
+				sblock_ptr->offset = 0;
+				sblock_ptr->length = BLOCKSIZE;
+			}
+			memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+			sblock_ptr++;
+			fb_p++;
+		}
+	}
+	free(buf);
+	return blocknum;
+//
+//	file_meta_t meta;
+//	u64_t blocknum;
+//	sendblock_t *sblock_ptr = blocks;
+//	u64_t offset_1, length_1, real_length;
+//	u64_t bufsize;
+//	void *buf;
+//	int i;
+//
+//	memcpy(&meta, dt->data+fb*dt->sb->bytsPerSec,
+//			sizeof(file_meta_t));
+//	if (meta.flen < offset) {
+//		return -1;
+//	}
+//	real_length = (length < meta.flen-offset) ?
+//			length : meta.flen-offset;
+//	bufsize = meta.blocks * dt->sb->bytsPerSec;
+//	buf = malloc(bufsize);
+//	if (!buf) {
+//		return -9;
+//	}
+//	do_readfile(dt, fb, buf);
+//	offset_1 = up_div(offset, BLOCKSIZE) * BLOCKSIZE;
+//	length_1 = ((real_length + offset) / BLOCKSIZE) * BLOCKSIZE;
+//	blocknum = (length_1 - offset_1) / BLOCKSIZE;
+//	if (offset != offset_1) blocknum++;
+//	if (real_length != length_1) blocknum++;
+//	file_block_t *fb_p = buf+sizeof(file_meta_t) +
+//			(offset/BLOCKSIZE) * sizeof(file_block_t);
+//
+//	if (blocknum == 1) {
+//		sblock_ptr->block_num = fb_p->block_num;
+//		sblock_ptr->offset = offset % BLOCKSIZE;
+//		sblock_ptr->length = real_length - offset;
+////printf("sbp: %d\n", sblock_ptr->length);
+//		memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+//	} else {
+//		for (i = 0; i < blocknum; i++) {
+//			sblock_ptr->block_num = fb_p->block_num;
+//			if (i == 0) {
+//				sblock_ptr->offset = offset%BLOCKSIZE;
+//				sblock_ptr->length = BLOCKSIZE - offset;
+//			} else if (i == blocknum-1) {
+//				sblock_ptr->offset = 0;
+//				sblock_ptr->length = (real_length%BLOCKSIZE) ?
+//						real_length%BLOCKSIZE : BLOCKSIZE;
+//			} else {
+//				sblock_ptr->offset = 0;
+//				sblock_ptr->length = BLOCKSIZE;
+//			}
+//			memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+//			sblock_ptr++;
+//			fb_p++;
+//		}
+//	}
+//	meta.r_time = time(NULL);
+//	memcpy(dt->data+fb*dt->sb->bytsPerSec, &meta,
+//			sizeof(file_meta_t));
+//
+//	free(buf);
+//	return blocknum;
+}
+
+int c_write(dtree_t *dt, u32_t fb, u64_t offset, u64_t length, u32_t uid,
+		u32_t *ips, int iplen, sendblock_t *blocks)
+{
+	file_meta_t meta, *real_meta;
+	int newblocknum, blocknum;
+	sendblock_t *sblock_ptr = blocks;
+	u64_t offset_1, length_1, newsize;
+	u64_t bufsize, bufsize_1, bufsize_2;
+	void *buf;
+	int i;
+
+//	printf("initsize: %llu, %llu, %llu\n", newsize,  length, offset);
+	memcpy(&meta, dt->data+fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	if (meta.flen < offset+length) {
+//		printf("olllllllllllllllllllllllllllllllll%llu\n", offset+length);
+		newsize = offset+length;
+	} else {
+//		printf("flfffffffffffffffffffffffffff%llu\n", meta.flen);
+		newsize = meta.flen;
+	}
+//	printf("flen: %llu\n", meta.flen);
+	if (meta.flen < offset) {
+		return -1;
+	}
+	bufsize_1 = sizeof(file_meta_t) +
+			up_div(offset+length, BLOCKSIZE)*sizeof(file_block_t);
+	bufsize_2 = meta.blocks * dt->sb->bytsPerSec;
+	bufsize = (bufsize_1 > bufsize_2) ? bufsize_1 : bufsize_2;
+	real_meta = buf = malloc(bufsize);
+	if (!buf) {
+		return -9;
+	}
+	do_readfile(dt, fb, buf);
+	offset_1 = up_div(offset, BLOCKSIZE) * BLOCKSIZE;
+	length_1 = ((length + offset) / BLOCKSIZE) * BLOCKSIZE;
+	blocknum = (length_1 - offset_1) / BLOCKSIZE;
+//printf("num=%d, %llu, %llu\n", blocknum, length, offset);
+//printf("num=%d, %llu, %llu\n", blocknum, length_1, offset_1);
+	if (offset != offset_1) blocknum++;
+	if (offset+length != length_1) blocknum++;
+	newblocknum = up_div(offset+length, BLOCKSIZE) -
+			up_div(meta.flen, BLOCKSIZE);
+//	printf("asdf: %llu\n", meta.flen);
+//	printf("new=%d, %llu, %llu\n", newblocknum, up_div(offset+length, BLOCKSIZE), up_div(meta.flen, BLOCKSIZE));
+	if (newblocknum <= 0) {
+		file_block_t *fb_p = buf+sizeof(file_meta_t) +
+				(offset/BLOCKSIZE) * sizeof(file_block_t);
+//printf("asdfasdf=%d, %llu, %llu\n", blocknum, length_1, offset_1);
+		if (blocknum == 1) {
+			sblock_ptr->block_num = fb_p->block_num;
+			sblock_ptr->offset = offset % BLOCKSIZE;
+			sblock_ptr->length = length;
+			fb_p->length = length + offset;
+//printf("sbp: %d\n", sblock_ptr->length);
+			memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+		} else {
+			for (i = 0; i < blocknum; i++) {
+				sblock_ptr->block_num = fb_p->block_num;
+				if (i == 0) {
+					sblock_ptr->offset = offset%BLOCKSIZE;
+					sblock_ptr->length = BLOCKSIZE - offset;
+				} else if (i == blocknum-1) {
+					sblock_ptr->offset = 0;
+					sblock_ptr->length = ((offset+length)%BLOCKSIZE) ?
+							(offset+length)%BLOCKSIZE : BLOCKSIZE;
+					fb_p->length = (sblock_ptr->length < fb_p->length) ?
+							fb_p->length : sblock_ptr->length;
+				} else {
+					sblock_ptr->offset = 0;
+					sblock_ptr->length = BLOCKSIZE;
+				}
+				memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+				sblock_ptr++;
+				fb_p++;
+			}
+		}
+	} else {
+		u64_t oldblocknum = blocknum - newblocknum;
+		int i;
+		file_block_t *fb_p = buf+sizeof(file_meta_t) +
+				(offset/BLOCKSIZE) * sizeof(file_block_t);
+		for (i = 0; i < oldblocknum; i++) {
+			sblock_ptr->block_num = fb_p->block_num;
+			if (i == 0) {
+				sblock_ptr->offset = offset % BLOCKSIZE;
+				sblock_ptr->length = BLOCKSIZE - offset;
+			} else {
+				sblock_ptr->offset = 0;
+				sblock_ptr->length = BLOCKSIZE;
+			}
+			memcpy(sblock_ptr->ip, fb_p->ip, NR_COPY*sizeof(u32_t));
+			sblock_ptr++;
+			fb_p++;
+		}
+		for (i = 0; i < newblocknum; i++) {
+			file_block_t *newblock = buf + sizeof(file_meta_t) +
+					real_meta->strbase;
+			alloc_block(dt, ips, iplen, newblock);
+			sblock_ptr->block_num = newblock->block_num;
+			sblock_ptr->offset = 0;
+			if (i == newblocknum-1) {
+				sblock_ptr->length = (length%BLOCKSIZE) ?
+						length%BLOCKSIZE : BLOCKSIZE;
+			} else {
+				sblock_ptr->length = BLOCKSIZE;
+			}
+			newblock->length = sblock_ptr->length;
+			memcpy(sblock_ptr->ip, newblock->ip, NR_COPY*sizeof(u32_t));
+			sblock_ptr++;
+			real_meta->strbase += sizeof(file_block_t);
+		}
+	}
+	real_meta->flen = newsize;
+//	printf("newsize: %llu\n", newsize);
+	real_meta->w_time = time(NULL);
+	real_meta->blocks = up_div(sizeof(file_meta_t)+real_meta->strbase,
+			dt->sb->bytsPerSec);
+	do_writefile(dt, fb, buf,
+			sizeof(file_meta_t)+real_meta->strbase);
+	free(buf);
+	return blocknum;
+}
+
+#if 0
+int c_write(dtree_t *dt, u32_t fb, u64_t offset, u64_t length, u32_t uid,
+		u32_t *ips, int iplen, sendblock_t *blocks)
+{
+	file_block_t *endbp;
+	file_block_t *bp=NULL;
+	file_meta_t meta, *rmeta;
+	u64_t block_num, i, newsize, lastlen, newblocknum = 0;
+	void *data;
+printf("write %d, %d", offset, length);
+	memcpy(&meta, dt->data+fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	if (meta.flen < offset) {
+		return -1;
+	}
+	newsize = (meta.flen > (offset+length)) ? meta.flen : offset+length;
+printf("newsize=%d\n", newsize);
+	data = malloc(sizeof(file_meta_t)+(newsize+BLOCKSIZE-1)/BLOCKSIZE);
+	if (!data) {
+		printf("hre\n");
+		return -9;
+	}
+	do_readfile(dt, fb, data);
+	rmeta = data;
+
+	endbp = data + sizeof(file_meta_t) + meta.strbase;
+	block_num = (offset % BLOCKSIZE + length + BLOCKSIZE -1) / BLOCKSIZE;
+	lastlen = length / BLOCKSIZE;
+	if (lastlen == 0) lastlen = BLOCKSIZE;
+	bp = data + sizeof(file_meta_t) +
+			(offset%BLOCKSIZE) * sizeof(file_block_t);
+printf("block_num=%llu, bp=%p, endbp=%p\n", block_num, bp, endbp);
+	file_block_t *tmp=bp;
+printf("block_num=%llu, bp=%p, endbp=%p\n", block_num, bp, endbp);
+//printf("i=%d, bp=%p, endbp=%p, tmp=%p\n", i, bp, endbp, tmp);
+	for (i = 0; i < block_num; i++) {
+//printf("i=%d, bp=%p, endbp=%p\n", i, bp, endbp);
+printf("i=%d, bp=%p, endbp=%p\n", 90909, bp, endbp);
+		if ((unsigned long)bp < (unsigned long)endbp) {
+			printf("i=%d, bp=%p, endbp=%p\n", i, bp, endbp);
+printf("if\n");
+			blocks[i].block_num = bp->block_num;
+			blocks[i].offset = (i == 0) ?
+					(offset % BLOCKSIZE) : 0;
+			blocks[i].length = (i == block_num-1) ?
+					lastlen : BLOCKSIZE;
+			memcpy(blocks[i].ip, bp->ip, NR_COPY*sizeof(u32_t));
+			bp++;
+		} else {
+			file_block_t newblock;
+printf("alloc_block");
+			alloc_block(dt, ips, iplen, &newblock);
+printf("end alloc_block");
+			newblocknum++;
+			memcpy(data+sizeof(file_meta_t)+rmeta->strbase, &newblock,
+					sizeof(file_block_t));
+			rmeta->strbase += sizeof(file_block_t);
+			blocks[i].block_num = newblock.block_num;
+			blocks[i].offset = (i == 0) ?
+					(offset % BLOCKSIZE) : 0;
+			blocks[i].length = (i == block_num-1) ?
+					lastlen : BLOCKSIZE;
+		}
+	}
+printf("end for\n");
+	do_writefile(dt, fb, data,
+			meta.flen+newblocknum*sizeof(file_block_t));
+	free(data);
+
+	return block_num;
+}
+#endif
+
+int c_opendir(dtree_t *dt, char *path, u32_t uid, u64_t *entnum)
+{
+	file_entry_t entry;
+	file_meta_t meta;
+	int fb, ret;
+
+	ret = c_lookup(dt, path, uid, &entry);
+	if (ret)
+		return -1;
+	fb = entry.fb;
+
+	memcpy(&meta, dt->data+entry.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+
+	if (!permission_check(uid, &meta, R)) {
+		return -4;
+	}
+
+	*entnum = meta.strbase / sizeof(file_entry_t);
+
+	return fb;
+}
+
+int c_readdir(dtree_t *dt, u32_t fb, u64_t entnum, u32_t uid,
+		char *name, u8_t *type)
+{
+	file_meta_t meta;
+	file_entry_t *ptr;
+	void *buf;
+
+	memcpy(&meta, dt->data+fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	if (entnum*sizeof(file_entry_t) >= meta.strbase) {
+		return -1;
+	}
+	buf = malloc(meta.blocks * dt->sb->bytsPerSec);
+	if (!buf) {
+		return -9;
+	}
+	do_readdir(dt, fb, buf);
+	ptr = buf + sizeof(file_meta_t) +
+			entnum*sizeof(file_entry_t);
+	*type = ptr->type;
+	strncpy(name, buf+sizeof(file_meta_t)+meta.strbase+ptr->name,
+			MAX_FILENAME);
+	name[MAX_FILENAME-1] = 0;
+	free(buf);
+	return 0;
 }
 
 int c_chown(dtree_t *dt, char *path, u32_t newuid, u32_t uid)
@@ -266,7 +963,7 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 //	dump_meta(&pmeta);
 	pdata = malloc(pmeta.blocks * bytsPerSec);
 	if (!pdata)
-		return -1;
+		return -9;
 	do_readdir(dt, parent.fb, pdata);
 	if (find_entry_by_name(pdata, dirname)) {
 		return 3;
@@ -276,7 +973,7 @@ int c_mkdir(dtree_t *dt, char *path, u32_t uid)
 	buf = malloc(newsize);
 	if (!buf) {
 		free(pdata);
-		return -1;
+		return -9;
 	}
 	memset(buf, 0, newsize);
 
@@ -339,7 +1036,7 @@ int c_rmdir(dtree_t *dt, char *path, u32_t uid)
 	}
 	pdata = malloc(pmeta.blocks * bytsPerSec);
 	if (!pdata)
-		return -1;
+		return -9;
 
 	do_readdir(dt, parent.fb, pdata);
 	rmdirent = find_entry_by_name(pdata, dirname);
@@ -356,7 +1053,7 @@ int c_rmdir(dtree_t *dt, char *path, u32_t uid)
 			sizeof(file_meta_t));
 	buf = malloc(meta.blocks * bytsPerSec);
 	if (!buf)
-		return -1;
+		return -9;
 	do_readdir(dt, rmdirent->fb, buf);
 	if (!is_dir_empty(rmdirent, &meta)) {
 		free(pdata);
@@ -398,7 +1095,7 @@ static int do_remove_entry(void *pdata, file_entry_t *entry)
 	tmpsize = meta->flen - (u64_t)((long)entry - (long)pdata);
 	tmp = malloc(tmpsize);
 	if (!tmp)
-		return -1;
+		return -9;
 	memcpy(tmp, p, tmpsize);
 	memcpy(entry, tmp, tmpsize);
 	free(tmp);
@@ -476,7 +1173,7 @@ static int c_find_entry(dtree_t *dt, file_entry_t* base,
 			sizeof(file_meta_t));
 	buf = malloc(meta.blocks * bytsPerSec);
 	if (!buf)
-		return -1;
+		return -9;
 
 	do_readdir(dt, base->fb, buf);
 
@@ -538,7 +1235,7 @@ static int extend(dtree_t *dt, u64_t newsize)
 
 	buf = malloc(newsize);
 	if (!buf)
-		return -1;
+		return -9;
 	memset(buf, 0, bytsPerSec);
 
 	sb = buf;
@@ -589,6 +1286,7 @@ static void do_mkcfs(dtree_t *dt, unsigned int size, unsigned int bytsPerSec)
 	sb->totSecNum = totSecNum;
 	sb->fatSecNum = fatSecNum;
 	sb->fatNum = (size-fatSize-bytsPerSec) / bytsPerSec;
+	sb->maxBlockNum = 0;
 
 	fat = buf+bytsPerSec;
 	memset(fat, 0, fatSecNum*bytsPerSec);
@@ -600,6 +1298,63 @@ static void do_mkcfs(dtree_t *dt, unsigned int size, unsigned int bytsPerSec)
 	initdir(dt, 0, &root_entry, &root_entry);
 	memcpy(dt->data, &root_entry,
 			sizeof(file_entry_t));
+}
+
+static int initfile(dtree_t *dt, u32_t uid,
+		file_entry_t *file_entry, file_entry_t *parent, u8_t mode)
+{
+	file_meta_t *meta;
+	u32_t count, fat_index, i;
+	u64_t size = sizeof(file_meta_t);
+	time_t tm = time(NULL);
+
+	meta = malloc(size);
+	if (!meta)
+		return -9;
+	memset(meta, 0, size);
+
+	do {
+		fat_index = next_free_fat(0, dt->fat_p, dt->sb->fatNum);
+		if (fat_index != -1) break;
+		extend(dt, dt->dt_size * 2);
+	} while (1);
+
+	file_entry->fb = fat_index;
+
+	count = (size + dt->sb->bytsPerSec - 1) / dt->sb->bytsPerSec;
+
+	meta->flags = mode;
+	meta->c_time = tm;
+	meta->r_time = tm;
+	meta->w_time = tm;
+	meta->uid = uid;
+	meta->count = 1;
+	meta->flen = 0;
+	meta->strbase = 0;
+	meta->strlen = 0;
+	meta->blocks = count;
+
+	for (i = 0; i < count;) {
+		int len = (size < dt->sb->bytsPerSec) ? size : dt->sb->bytsPerSec;
+		u32_t next;
+		memcpy(dt->data+fat_index*dt->sb->bytsPerSec,
+				(void *)meta+i*dt->sb->bytsPerSec, len);
+		i += 1;
+		dt->fat_p[fat_index] = ENDSEC;
+		if (i >= count) break;
+		do {
+			next = next_free_fat(fat_index, dt->fat_p, dt->sb->fatNum);
+			if (next != -1) break;
+			extend(dt, dt->dt_size * 2);
+		} while (1);
+		dt->fat_p[fat_index] = next;
+		fat_index = next;
+		size -= dt->sb->bytsPerSec;
+	}
+
+	free(meta);
+
+	return 0;
 }
 
 static int initdir(dtree_t *dt, u32_t uid,
@@ -614,7 +1369,7 @@ static int initdir(dtree_t *dt, u32_t uid,
 
 	meta = malloc(size);
 	if (!meta)
-		return -1;
+		return -9;
 	memset(meta, 0, size);
 
 	do {
@@ -670,6 +1425,7 @@ static int initdir(dtree_t *dt, u32_t uid,
 		memcpy(dt->data+fat_index*dt->sb->bytsPerSec,
 				(void *)meta+i*dt->sb->bytsPerSec, len);
 		i += 1;
+		dt->fat_p[fat_index] = ENDSEC;
 //printf("here2: i=%d, count=%d\n",i,count);
 		if (i >= count) break;
 		do {
@@ -682,7 +1438,6 @@ static int initdir(dtree_t *dt, u32_t uid,
 		size -= dt->sb->bytsPerSec;
 	}
 //printf("fat=%d\n", fat_index);
-	dt->fat_p[fat_index] = ENDSEC;
 //printf("free meta: fat_index=%d\n", fat_index);
 	free(meta);
 //printf("vvvv\n");
@@ -741,9 +1496,10 @@ static int save_file(void *buf, unsigned int size, char *filename)
 {
 	int fd;
 	int ret;
+//printf("out: %s\n", filename);
 
 	fd = open(filename, O_WRONLY|O_CREAT, 0644);
-	if (!fd)
+	if (fd < 0)
 		return -1;
 	ret = write(fd, buf, size);
 	if (ret != size)
