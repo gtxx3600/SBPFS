@@ -27,14 +27,23 @@ void process_req(struct list_entry * ent);
 void* serve(void* arg);
 void send_list(char* ip);
 int send_copy(char*ip, u64_t blocknum);
+int get_reply(int skt);
 struct list_entry list_head;
 pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t list_cond = PTHREAD_COND_INITIALIZER;
 FILE *fp;
 int main() {
-	//char*ip = "127.0.0.1";
-	//send_list(ip);
+
+	//getlist();
+
 	initlist();
+	//writeblock(3, 3, 3, "abc");
+	//getlist();
+	char*ip = "192.168.1.107";
+	strcpy(dname,"cxy");
+	send_list(ip);
+	//
+
 	bzero(&list_head, sizeof(struct list_entry));
 	pthread_t pid;
 
@@ -75,7 +84,6 @@ int main() {
 		unsigned int sin_size = sizeof(struct sockaddr_in);
 		temp_socket_descriptor = accept(socket_descriptor,
 				(struct sockaddr *) &pin, &sin_size);
-
 
 		if (temp_socket_descriptor == -1) {
 			perror("Accept Failed");
@@ -300,6 +308,7 @@ void send_list(char* ip) {
 	sprintf(dnodename, "%s%s", "DNode_", dname);
 	mkent(head,CONTENT_LEN,c_len);
 	mkent(head,USER,dnodename);
+	mkent(head,"BlockNum",block_num_s);
 	if (make_head(&head_data, &head_data_len, &head) == -1) {
 		printf("mkhead failed\n");
 		free(head_data);
@@ -319,6 +328,12 @@ void send_list(char* ip) {
 		free(head_data);
 		return;
 	}
+	printf("sendlist succeed\n");
+	if (get_reply(skt) < 0) {
+		printf("error sendlist \n");
+		return;
+	}
+	printf("reply succeed\n");
 
 }
 
@@ -410,7 +425,6 @@ int send_copy(char*ip, u64_t blocknum) {
 			free(head_data);
 			return -1;
 		}
-
 		if (sbp_send(skt, head_data, head_data_len) < 0) {
 			printf("send head err failed\n");
 			sbp_perror("a");
