@@ -18,6 +18,9 @@
 # along with SBPFS; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
+import struct
+import socket
+
 from c_node.fs.libcfs import *
 from util.common import *
 
@@ -31,13 +34,16 @@ SBP_O_CREAT = 0x08
 SBP_O_APPEND = 0x10
 
 def load_dnodes():
-    with open('config/dnodes', 'r') as f:
-        lines = f.readlines()
-    ips = []
-    for line in lines:
-        name, ip = line.rsplit(':', 1)
-        ips.append(ip)
-    return ','.join(ips)
+#    with open('config/dnodes', 'r') as f:
+#        lines = f.readlines()
+    ipmap = {}
+#    for line in lines:
+#        name, ip = line.rsplit(':', 1)
+#        ipmap[name] = ip.strip()
+    return ipmap
+
+def long2ip (lint):
+    return socket.inet_ntoa(struct.pack("!I", lint))
 
 class FileDes:
     def __init__(self, fb, mode, type):
@@ -81,12 +87,18 @@ class FdPool:
     def isEmpty(self):
         return len(self.__usingmap) == 0
 
+
 class DTree:
     def __init__(self, dt_file, in_file):
         self.dt_file = dt_file
         self.in_file = in_file
         self.fds = {}
-        self.ips = load_dnodes();
+        self.ipmap = load_dnodes();
+        l = []
+        for key in self.ipmap.keys():
+            l.append(self.ipmap[key])
+        self.ips = ','.join(l)
+        self.blockmap = {}
         self.diskp = open_disk(dt_file, in_file)
 #        print self.diskp
 #        print c_mkdir(self.diskp, '/haha1/', 0)
@@ -101,6 +113,7 @@ class DTree:
 #            print 'sk%d: %d\n' % (i, c_mkdir(self.diskp, '/sk%d'%i, 0))
 #        print c_rmdir(self.diskp, '/abcb', 0)
 #        print c_chmod(self.diskp, '/abc', 15, 0)
+#        print self.isFileLost('/test')
 
     def __gen_fd(self, file, uid):
         if self.fds.has_key(uid):
@@ -115,15 +128,64 @@ class DTree:
         if self.fds[uid].isEmpty():
             del self.fds[uid]
     
+    def __is_block_exists(self, block):
+        if self.blockmap.has_key(block) and self.blockmap[block]:
+            for user in self.blockmap[block]:
+                if self.ipmap.has_key(user):
+                    return True
+        return False
+    
+    # This is an ugly method, but it works.
+    def __flit_read(self, data):
+        i = 0;
+        max = len(data) / 32 #(8+4+4+4*3+4), magic number
+        ret = ''
+        for i in range(0, max):
+            bn, of, le, ip1, ip2, ip3, r1, r2, r3, r4 = \
+                    struct.unpack('QIIIIIBBBB', data[i*32:(i+1)*32])
+            ips = set()
+            for user in self.blockmap[bn]:
+                ips.add(self.ipmap[user])
+            if not long2ip(ip1) in ips:
+                ip1 = 0
+            if not long2ip(ip2) in ips:
+                ip2 = 0
+            if not long2ip(ip3) in ips:
+                ip3 = 0
+            ret += struct.pack('QIIIIIBBBB', 
+                               bn, of, le, 
+                               ip1, ip2, ip3, 
+                               r1, r2, r3, r4)
+        return ret
+    
+    def addBlockInfo(self, l, user, ip):
+        for block in l:
+            if not self.blockmap.has_key(block):
+                self.blockmap[block] = set([user])
+            else:
+                self.blockmap[block].add(user)
+        self.ipmap[user] = ip
+        tmp = []
+        for key in self.ipmap.keys():
+            tmp.append(self.ipmap[key])
+        self.ips = ','.join(tmp)
+    
+    def dropUser(self, user):
+        if self.ipmap.has_key(user):
+            del self.ipmap[user]
+    
     def dt_close(self):
         ret = save_disk(self.diskp, self.dt_file, self.in_file)
         if ret:
             raise SaveError()
         print 'close disk'
         close_disk(self.diskp)
-        print 'shutdown'
+        print 'server shutdown'
     
     def open(self, path, oflags, mode, uid):
+        if self.isFileLost(path):
+            raise DTreeError('FileLostError', 
+                             'File %d lost some blocks'%path)
         oflags = int(oflags)
         mode = int(mode)
         fb = c_open(self.diskp, path, oflags, mode, uid)
@@ -154,12 +216,15 @@ class DTree:
         data = c_read(self.diskp, file.fb, offset, length, uid)
         if data == None:
             raise DTreeError('ReadError', 'ReadError')
-        return data
+        return self.__flit_read(data)
     
     def write(self, fd, offset, length, uid):
         fd = int(fd)
         offset = int(offset)
         length = int(length)
+        if self.ips == '':
+            raise DTreeError('NoDataNodeError', 
+                             'Not data node connect to server')
         try:
             file = self.fds[uid].get_file(fd)
         except:
@@ -176,8 +241,8 @@ class DTree:
     
     def stat(self, path, uid):
         data = c_stat(self.diskp, path, uid)
-        if data:
-            raise DTreeError("StatError", 'StatError');
+        if data == None:
+            raise DTreeError("StatError", 'No such file or directory');
         return data
     
     def close(self, fd, uid):
@@ -295,6 +360,21 @@ class DTree:
             raise DTreeError('PermissionError', 'Permission denied')
         elif ret < 0:
             raise DTreeError('FatalError', 'Server Error')
+    
+    def isFileLost(self, path):
+        ret = c_getblocks(self.diskp, path)
+        if ret == None:
+            return None # File not exists
+        blocks, num = ret
+        assert type(num) == int
+        if num == 0:
+            return False;
+        l = struct.unpack('Q'*num, blocks)
+#        print l
+        for block in l:
+            if not self.__is_block_exists(block):
+                return True
+        return False
 
 class DTreeError(Exception):
     def __init__(self, type='', msg=''):

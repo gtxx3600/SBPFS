@@ -43,6 +43,46 @@ static u32_t iptoi(char *s) {
 	return n;
 }
 
+PyObject *wrap_c_getblocks(PyObject *self, PyObject *args)
+{
+	unsigned long dt;
+	char *tmp, *path;
+	u64_t *l = NULL;
+	int ret;
+	PyObject *reto;
+
+	if (!PyArg_ParseTuple(args, "ks", &dt, &tmp)) {
+		return NULL;
+	}
+	path = malloc(strlen(tmp)+1);
+	if (!path) {
+		return Py_BuildValue("");
+	}
+	strcpy(path, tmp);
+	ret = c_getblocknum((dtree_t *)dt, path);
+	if (ret < 0) {
+		free(path);
+		return Py_BuildValue("");
+	}
+	if (ret == 0) {
+		free(path);
+		return Py_BuildValue("(si)", NULL, ret);
+	}
+	l = malloc(ret*sizeof(u64_t));
+	strcpy(path, tmp);
+	ret = c_getblocks((dtree_t *)dt, path, l);
+	printf("ret=%d\n", ret);
+	if (ret <= 0) {
+		free(path);
+		free(l);
+		return Py_BuildValue("");
+	}
+	free(path);
+	reto = Py_BuildValue("(s#i)", (char *)l, ret*sizeof(u64_t), ret);
+	free(l);
+	return reto;
+}
+
 PyObject *wrap_c_open(PyObject *self, PyObject *args)
 {
 	unsigned long dt;
@@ -81,9 +121,10 @@ PyObject *wrap_c_stat(PyObject *self, PyObject *args)
 	}
 	strcpy(path, tmp);
 	ret = c_stat((dtree_t *)dt, path, uid, &st);
+	printf("ret=%d\n", ret);
 	free(path);
 	if (ret) {
-		return Py_BuildValue("i", ret);
+		return Py_BuildValue("");
 	}
 	return Py_BuildValue("s#", (char *)(&st), sizeof(stat_t));
 }
@@ -378,6 +419,7 @@ PyObject *wrap_close_disk(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef libcfsMethods[] = {
+		{"c_getblocks", wrap_c_getblocks, METH_VARARGS, ""},
 		{"c_open", wrap_c_open, METH_VARARGS, ""},
 		{"c_read", wrap_c_read, METH_VARARGS, ""},
 		{"c_stat", wrap_c_stat, METH_VARARGS, ""},

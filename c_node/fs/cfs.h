@@ -138,8 +138,11 @@ typedef struct c_stat {
 	u64_t ctime;
 	u32_t owner;
 	u8_t mode;
-	u8_t reserver[3];
+	u8_t reserver[27];
 } stat_t;
+
+int c_getblocknum(dtree_t *dt, char *path);
+int c_getblocks(dtree_t *dt, char *path, u64_t *l);
 
 int c_stat(dtree_t *dt, char *path, u32_t uid, stat_t *st);
 int c_open(dtree_t *dt, char *path, u8_t oflags, u8_t mode, u32_t uid);

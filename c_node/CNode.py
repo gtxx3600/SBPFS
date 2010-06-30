@@ -147,11 +147,11 @@ class Connection(threading.Thread):
             self.__senderr('NoUserError', 'No User Name')
             self.conn.close()
             return
-        if not head.has_key('Password'):
-            self.__senderr('NoPasswordError', 'No Password')
-            self.conn.close()
-            return
         if head['User'].startswith('Client_'):
+            if not head.has_key('Password'):
+                self.__senderr('NoPasswordError', 'No Password')
+                self.conn.close()
+                return
             user = head['User'].replace('Client_', '')
             password = head['Password']
             self.__handle_client(UserInfo(self.users_info.find_uid(user), 
@@ -192,14 +192,15 @@ class Connection(threading.Thread):
                 return None, ''
             while len(data) < conlen:
                 s = self.conn.recv(1024)
-                debug(s, 1)
+#                debug(s, 1)
                 if not s:
                     return None, ''
                 if len(data) + len(s) > conlen:
                     offset = conlen - len(data)
                     s = s[:offset]
                 data += s
-            debug('DATA: %s' % data, 1)
+            if len(data):
+                debug('DATA: \n%s' % dump_data(data), 1)
         else:
             assert data == ''
         return d, data
@@ -313,7 +314,26 @@ class Connection(threading.Thread):
             self.__senderr('ArguementError', 'Wrong type')
     
     def __handle_dnode(self, head, data):
-        pass
+        def check_missing_key(key, type, detail):
+            if not head.has_key(key):
+                self.__senderr(type, detail)
+                return True
+            return False
+        
+        if check_missing_key('BlockNum', 'NoBlockNumError', 
+                             'Content-Length'):
+            return
+        try:
+            blocknum = int(head['BlockNum'])
+        except:
+            self.__senderr('TypeError', 'BLockNum is not an integer')
+        
+        user = head['User'].replace('DNode_', '')
+        l = struct.unpack('Q'*blocknum, data)
+        self.dtree.addBlockInfo(l, user, self.addr[0])
+        self.__sendok()
+        debug('ipmap:\n%s'%self.dtree.ipmap, 1)
+        debug('blockmap:\n%s'%self.dtree.blockmap, 1)
     
     def __handle_unknown(self, head, data):
         self.__senderr('UserNameError', 'Unknown user')
@@ -326,7 +346,7 @@ class Connection(threading.Thread):
             self.__senderr(e.type, e.msg)
             
     def __read(self, fd, offset, length):
-        debug('__reand(%s, %s, %s)' % (fd, offset, length))
+        debug('__read(%s, %s, %s)' % (fd, offset, length))
         try:
             data = self.dtree.read(fd, offset, length, self.uid)
             self.__sendrep({}, data)

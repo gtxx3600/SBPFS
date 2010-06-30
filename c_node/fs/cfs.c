@@ -84,8 +84,7 @@ static int permission_check(u32_t uid, file_meta_t *meta, u8_t op)
 }
 
 static int gen_ip_index(int max) {
-	static int i = -1;
-	if (i == -1) i = random();
+	static int i = 0;
 	return (i++) % max;
 }
 
@@ -101,10 +100,10 @@ static void alloc_block(dtree_t *dt, u32_t *ips, int max,
 	memset(block, 0, sizeof(file_block_t));
 	for (i = 0; i < NR_COPY; i++) {
 		ip = ips[gen_ip_index(max)];
-		block->ip[i] = ip;
-		if (ip == block->ip[0]) {
+		if (i != 0 && ip == block->ip[0]) {
 			break;
 		}
+		block->ip[i] = ip;
 	}
 	block->block_num = dt->sb->maxBlockNum++;
 	block->offset = 0;
@@ -215,6 +214,95 @@ static char *get_filename_from_path(char *path)
 	return &path[last+1];
 }
 
+int c_getblocknum(dtree_t *dt, char *path)
+{
+	char *filename;
+	int ret;
+	file_entry_t parent, *ofile;
+	file_meta_t pmeta, meta;
+	void *pdata;
+
+//printf("open=%s\n", path);
+	filename = get_filename_from_path(path);
+	if (!filename) {
+		return -1;
+	}
+//printf("filename=%s\n", filename);
+	ret = c_lookup(dt, path, 0, &parent);
+	if (ret) {
+		return -1;
+	}
+	if (parent.type != S_DIR) {
+		return -1;
+	}
+
+	memcpy(&pmeta, dt->data + parent.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	pdata = malloc(pmeta.blocks * dt->sb->bytsPerSec);
+	if (!pdata)
+		return -9;
+
+	do_readdir(dt, parent.fb, pdata);
+	ofile = find_entry_by_name(pdata, filename);
+	if (!ofile) {
+		return -1;
+	}
+	memcpy(&meta, dt->data + ofile->fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	ret = meta.strbase / sizeof(file_block_t);
+	free(pdata);
+	return ret;
+}
+
+int c_getblocks(dtree_t *dt, char *path, u64_t *l)
+{
+	char *filename;
+	int ret, i;
+	file_entry_t parent, *ofile;
+	file_meta_t pmeta, meta;
+	file_block_t *ptr;
+	void *pdata, *buf;
+
+//printf("open=%s\n", path);
+	filename = get_filename_from_path(path);
+	if (!filename) {
+		return -1;
+	}
+//printf("filename=%s\n", filename);
+	ret = c_lookup(dt, path, 0, &parent);
+	if (ret)
+		return -1;
+	if (parent.type != S_DIR)
+		return -1;
+
+	memcpy(&pmeta, dt->data + parent.fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	pdata = malloc(pmeta.blocks * dt->sb->bytsPerSec);
+	if (!pdata)
+		return -9;
+
+	do_readdir(dt, parent.fb, pdata);
+	ofile = find_entry_by_name(pdata, filename);
+	if (!ofile) {
+		return -1;
+	}
+	memcpy(&meta, dt->data + ofile->fb*dt->sb->bytsPerSec,
+			sizeof(file_meta_t));
+	buf = malloc(meta.blocks*dt->sb->bytsPerSec);
+	if (!buf)
+		return -9;
+	do_readfile(dt, ofile->fb, buf);
+	ptr = buf + sizeof(file_meta_t);
+	for (i =  0;ptr != buf+sizeof(file_meta_t)+meta.strbase;
+			ptr++, i++) {
+//		printf("here=%d\n", i);
+		l[i] = ptr->block_num;
+	}
+	free(buf);
+	free(pdata);
+	return i;
+}
+
 int c_stat(dtree_t *dt, char *path, u32_t uid, stat_t *st)
 {
 	char *filename;
@@ -237,18 +325,21 @@ int c_stat(dtree_t *dt, char *path, u32_t uid, stat_t *st)
 
 	memcpy(&pmeta, dt->data + parent.fb*dt->sb->bytsPerSec,
 			sizeof(file_meta_t));
-	check = permission_check(uid, &pmeta, R);
-	if (!check) {
-		return -4;
-	}
 	pdata = malloc(pmeta.blocks * dt->sb->bytsPerSec);
 	if (!pdata)
 		return -9;
 
 	do_readdir(dt, parent.fb, pdata);
 	ofile = find_entry_by_name(pdata, filename);
+	if (!ofile) {
+		return -1;
+	}
 	memcpy(&meta, dt->data + ofile->fb*dt->sb->bytsPerSec,
 			sizeof(file_meta_t));
+	check = permission_check(uid, &meta, R);
+	if (!check) {
+		return -4;
+	}
 
 	st->atime = meta.r_time;
 	st->ctime = meta.c_time;
