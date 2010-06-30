@@ -4,18 +4,21 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../blockman.c \
 ../d_node.c \
 ../global.c \
 ../lib.c \
 ../sbp_perror.c 
 
 OBJS += \
+./blockman.o \
 ./d_node.o \
 ./global.o \
 ./lib.o \
 ./sbp_perror.o 
 
 C_DEPS += \
+./blockman.d \
 ./d_node.d \
 ./global.d \
 ./lib.d \

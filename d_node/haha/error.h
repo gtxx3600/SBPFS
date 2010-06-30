@@ -54,7 +54,7 @@
 #define seterr(type,detail) sbp_seterr(type,detail,__FILE__,__LINE__,__FUNCTION__)
 void sbp_seterr(char* type, char* detail,const char* file, int line, const char* func);
 void sbp_update_err(struct sbpfs_head* head);
-
+void sbp_perror(char* s);
 struct sbp_err{
 	int 	line;
 	struct sbp_err * next;
