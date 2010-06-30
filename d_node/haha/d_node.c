@@ -22,7 +22,7 @@
 char dname[32];
 void send_err(int skt, char* err_type, char* err_detail);
 void free_ent(struct list_entry* ent);
-
+void send_success(char*ip, u64_t blocknum);
 void process_req(struct list_entry * ent);
 void* serve(void* arg);
 void send_list(char* ip);
@@ -40,7 +40,9 @@ int main() {
 	//writeblock(3, 3, 3, "abc");
 	//getlist();
 	char*ip = "192.168.1.107";
+
 	strcpy(dname,"haha");
+
 	send_list(ip);
 	//
 
@@ -282,6 +284,8 @@ void process_req(struct list_entry * ent) {
 			free(head_data);
 			return;
 		}
+		char*ip = "192.168.1.107";
+		send_success(ip,ent->block_num);
 	}
 	if (ent->req == 3) {
 		int succeed = writeblock(ent->block_num, ent->offset, ent->length,
@@ -337,17 +341,20 @@ void send_list(char* ip) {
 
 }
 
-void send_success(int skt, u64_t blocknum) {
+void send_success(char*ip, u64_t blocknum) {
+	int skt = sbp_connect(ip, CNODE_SERVICE_PORT);
 	struct sbpfs_head head;
 	char* head_data;
-	int head_data_len = 0;
+	int head_data_len;
 	head.data = NULL;
-	head.title = PROTOCOL;
 	head.entry_num = 0;
-	char blocknum_s[32];
-	sprintf(blocknum_s, "%lld", blocknum);
-	mkent(head,"Arg0",blocknum_s);
-	mkent(head,CONTENT_LEN,"0");
+	head.title = PROTOCOL;
+
+	char dnodename[38];
+	sprintf(dnodename, "%s%s", "DNode_", dname);
+	mkent(head,CONTENT_LEN,"8");
+	mkent(head,USER,dnodename);
+	mkent(head,"BlockNum","1");
 	if (make_head(&head_data, &head_data_len, &head) == -1) {
 		printf("mkhead failed\n");
 		free(head_data);
@@ -360,6 +367,19 @@ void send_success(int skt, u64_t blocknum) {
 		free(head_data);
 		return;
 	}
+	if (sbp_send(skt, (char*) &blocknum, 8) < 0) {
+		printf("send head err failed\n");
+		sbp_perror("a");
+		perror("a");
+		free(head_data);
+		return;
+	}
+	printf("sendlist succeed\n");
+	if (get_reply(skt) < 0) {
+		printf("error sendlist \n");
+		return;
+	}
+	printf("reply succeed\n");
 }
 
 int get_reply(int skt) {
