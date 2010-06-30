@@ -32,7 +32,7 @@
  int deletelist(u64_t blocknum);
  int addlist(u64_t blocknum);
  void initlist();*/
-char* listpath = "/home/cxy/blocklist";
+char* listpath = BLOCKLISTPATH;
 
 //int main() {
 //	printf("1\n");
@@ -93,10 +93,14 @@ void initlist() {
 	int i;
 	char buf[64];
 
-	memset(buf,0, 64);
+	bzero(buf,64);
 	//strcpy(buf, "0000");
 
-	FILE *fd = fopen(BLOCKLISTPATH, "rb+");
+	FILE *fd = fopen(BLOCKLISTPATH, "wb+");
+	if(fd == NULL)
+	{
+		printf("lkajsdfl;aksjdfl;kj\n");
+	}
 	for (i = 0; i < 6401; i++) {
 		fwrite(buf, 64, 1, fd);
 	}
@@ -131,10 +135,12 @@ int writeblock(u64_t blocknum, u32_t offset, u32_t length, char* data) {
 		printf("block creating!\n");
 
 		createblock(blocknum);
+		if ((block = fopen(path, "rb+")) == NULL) {
+			perror("error in creating block.");
+			return -1;
+		}
 	}
-	if ((block = fopen(path, "rb+")) == NULL) {
-		perror("error in creating block.");
-	}
+
 
 	if (fseek(block, offset, SEEK_SET) < 0) {
 		perror("error: fseek");
@@ -201,7 +207,7 @@ int addlist(u64_t blocknum) {
 	bnum++;
 	printf("list add: %lld :%s\n", bnum - 1, blocklist[bnum - 1]);
 	FILE *blist;
-	blist = fopen(listpath, "rb+");
+	blist = fopen(BLOCKLISTPATH, "rb+");
 	if (blist < 0) {
 		perror("error: blocklist open!");
 		return -1;
@@ -233,7 +239,7 @@ int deletelist(u64_t blocknum) {
 		}
 	}
 	FILE *blist;
-	blist = fopen(listpath, "rb+");
+	blist = fopen(BLOCKLISTPATH, "rb+");
 	if (blist < 0) {
 		perror("error: blocklist open!");
 		return -1;

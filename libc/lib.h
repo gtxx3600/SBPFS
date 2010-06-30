@@ -70,7 +70,7 @@ struct block_entry{
 	u32_t offset_in_block;
 	u32_t length_in_block;
 	u32_t d_nodes[REDUNDANCY + 1];
-
+	u32_t preserved;
 };
 #define mkent(head,n,val)  head.entrys[head.entry_num].name = n;\
 	head.entrys[head.entry_num++].value = val;

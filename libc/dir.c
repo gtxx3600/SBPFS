@@ -98,8 +98,8 @@ s32_t sbp_opendir(char* filename) {
 	return fd;
 
 }
-s32_t sbp_closedir(u32_t dirfd){
-
+s32_t sbp_closedir(s32_t dirfd){
+	if(dirfd < 0)return -1;
 	if (fds[dirfd] == NULL)
 		return -1;
 	if (fds[dirfd]->type != T_DIR)
@@ -135,8 +135,8 @@ s32_t sbp_closedir(u32_t dirfd){
 	fds[dirfd] = NULL;
 	return 0;
 }
-struct sbp_dirent* sbp_readdir(u32_t dirfd) {
-	printf("readdir \n");
+struct sbp_dirent* sbp_readdir(s32_t dirfd) {
+
 	if(dirfd<0)return NULL;
 	if (fds[dirfd] == NULL) {
 		return NULL;

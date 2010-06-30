@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 struct sbp_filestat filestat;
+char* sbp_test(char* buf, u64_t len, char* target ,u32_t port);
 s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 	s32_t fd = get_slot();
 	char tran_oflag[32];
@@ -42,7 +43,7 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 	SBP_SEND_AND_PROCESS_REPLY
 
 	if (strncmp(head.title, REQUEST_OK, strlen(REQUEST_OK)) == 0) {
-		printf("reply ok\n");
+		//printf("reply ok\n");
 		if ((fds[fd] = (struct sbp_filedesc *) malloc(
 				sizeof(struct sbp_filedesc))) == NULL) {
 			seterr(MEM_ERR,MALLOC);
@@ -85,12 +86,23 @@ s32_t sbp_open(char* filename, u32_t oflag, u16_t mode) {
 		seterr(HEAD_ERR, UNKNOWN_HEAD);
 	}
 
-	err_exit4: sbp_close(fd);
-	err_exit3: free_head(&head);
-	err_exit2: free(rec_data);
-	err_exit1: free(data);
-	err_exit: free(usr);
+	err_exit4:
+	//printf("errexit4\n");
+	sbp_close(fd);
+	err_exit3:
+	//printf("errexit3\n");
+	free_head(&head);
+	err_exit2:
+	//printf("errexit2\n");
+	free(rec_data);
+	err_exit1:
+	//printf("errexit1\n");
+	free(data);
+	err_exit:
+	//printf("errexit\n");
+	free(usr);
 	free(pass);
+	//printf("open return\n");
 	return -1;
 	ok_exit: free(data);
 	free(rec_data);
@@ -137,10 +149,12 @@ struct sbp_filestat* sbp_stat(char* filename)
 			goto err_exit3;
 		}
 		content_l = atoll(value);
+		//printf("stat size :%ld\n",sizeof(struct sbp_filestat));
 		if(content_l != sizeof(struct sbp_filestat))
 		{
 			goto err_exit3;
 		}
+
 		memcpy(&filestat,rec_data + head.head_len,content_l);
 		goto ok_exit;
 	} else if (strncmp(head.title, REQUEST_ERR, strlen(REQUEST_ERR)) == 0) {
@@ -164,11 +178,13 @@ struct sbp_filestat* sbp_stat(char* filename)
 	free(pass);
 	return &filestat;
 }
-s32_t sbp_close(u32_t fd) {
+s32_t sbp_close(s32_t fd) {
+	//printf("close enter\n");
+	if (fd < 0) return -1;
 	if (fds[fd] == NULL)
 		return -1;
 	char tran_fd[32];
-
+	//printf("close start\n");
 	SBP_PREPARE_REQUEST
 
 	sprintf(tran_fd, "%lld", fds[fd]->server_fd);
@@ -188,6 +204,7 @@ s32_t sbp_close(u32_t fd) {
 	free(pass);
 	free_sbpfd(fds[fd]);
 	fds[fd] = NULL;
+	//printf("close err return\n");
 	return -1;
 	ok_exit: free(data);
 	free(rec_data);
@@ -196,6 +213,7 @@ s32_t sbp_close(u32_t fd) {
 	free(pass);
 	//free_sbpfd(fds[fd]);
 	//fds[fd] = NULL;
+	//printf("close done\n");
 	return 0;
 }
 

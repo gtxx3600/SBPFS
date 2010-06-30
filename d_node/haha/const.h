@@ -39,8 +39,8 @@
 #define FILE_DESC				"File-desc"
 
 
-#define ROOTPATH 				"/home/cxy/"
-#define BLOCKLISTPATH 			"/home/cxy/blocklist"
+#define ROOTPATH 				"/home/hhf/blocks/"
+#define BLOCKLISTPATH 			"/home/hhf/blocklist"
 
 #define HEADER_FLAG				"\r\n\r\n"
 #define MAX_USERNAME_LEN		16

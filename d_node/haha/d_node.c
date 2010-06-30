@@ -34,7 +34,7 @@ FILE *fp;
 int main() {
 	//char*ip = "127.0.0.1";
 	//send_list(ip);
-
+	initlist();
 	bzero(&list_head, sizeof(struct list_entry));
 	pthread_t pid;
 
