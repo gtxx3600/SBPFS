@@ -32,7 +32,7 @@
  int deletelist(u64_t blocknum);
  int addlist(u64_t blocknum);
  void initlist();*/
-char* listpath = "/home/cxy/blocklist";
+
 
 //int main() {
 //	printf("1\n");
@@ -59,7 +59,7 @@ char* listpath = "/home/cxy/blocklist";
 u64_t getlist() {
 	int i;
 	FILE *blist;
-	blist = fopen(listpath, "rb");
+	blist = fopen(BLOCKLISTPATH, "rb");
 	if (blist < 0) {
 		perror("error: blocklist open!");
 		return -1;
@@ -83,7 +83,7 @@ u64_t getlist() {
 		blolist[i]=tempnum;
 	}
 	for (i = 0; i < bnum; i++) {
-		printf("block %d : %s\n", i, blocklist[i]);
+		//printf("block %d : %s\n", i, blocklist[i]);
 	}
 	fclose(blist);
 	return bnum;
@@ -93,13 +93,21 @@ void initlist() {
 	int i;
 	char buf[64];
 
+	if(access(BLOCKLISTPATH,0)==0)
+	{
+		printf("a\n");
+		getlist();
+
+		return;
+	}
 	memset(buf,0, 64);
 	//strcpy(buf, "0000");
 
-	FILE *fd = fopen(BLOCKLISTPATH, "rb+");
+	FILE *fd = fopen(BLOCKLISTPATH, "wb+");
 	for (i = 0; i < 6401; i++) {
 		fwrite(buf, 64, 1, fd);
 	}
+
 	fclose(fd);
 }
 
@@ -201,7 +209,7 @@ int addlist(u64_t blocknum) {
 	bnum++;
 	printf("list add: %lld :%s\n", bnum - 1, blocklist[bnum - 1]);
 	FILE *blist;
-	blist = fopen(listpath, "rb+");
+	blist = fopen(BLOCKLISTPATH, "rb+");
 	if (blist < 0) {
 		perror("error: blocklist open!");
 		return -1;
@@ -233,7 +241,7 @@ int deletelist(u64_t blocknum) {
 		}
 	}
 	FILE *blist;
-	blist = fopen(listpath, "rb+");
+	blist = fopen(BLOCKLISTPATH, "rb+");
 	if (blist < 0) {
 		perror("error: blocklist open!");
 		return -1;
