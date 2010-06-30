@@ -39,8 +39,8 @@ int main() {
 	initlist();
 	//writeblock(3, 3, 3, "abc");
 	//getlist();
-	char*ip = "192.168.1.107";
-
+	//char*ip = "192.168.1.107";
+	char*ip = "59.78.15.46";
 	strcpy(dname,"haha");
 
 	send_list(ip);
@@ -284,8 +284,8 @@ void process_req(struct list_entry * ent) {
 			free(head_data);
 			return;
 		}
-		char*ip = "192.168.1.107";
-		send_success(ip,ent->block_num);
+		char*ip = "59.78.15.46";
+		//send_success(ip,ent->block_num);
 	}
 	if (ent->req == 3) {
 		int succeed = writeblock(ent->block_num, ent->offset, ent->length,

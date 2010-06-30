@@ -244,6 +244,7 @@ static s64_t read_blocks(struct block_entry* ents, u64_t block_count,
 		int k = 0;
 		for (; j <= REDUNDANCY; j++) {
 			if (ents[i].d_nodes[j]) {
+				//printf("read from %s block_num %lld\n",get_dnode_hostname(ents[i].d_nodes[j]),ents[i].block_id);
 				rec_len = read_block(&ents[i], j, buf + buf_ptr, auth_code);
 				if (rec_len >= ents[i].length_in_block) {
 					k = 1;
