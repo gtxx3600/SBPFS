@@ -40,7 +40,7 @@ int main() {
 	//writeblock(3, 3, 3, "abc");
 	//getlist();
 	char*ip = "192.168.1.107";
-	strcpy(dname,"cxy");
+	strcpy(dname,"haha");
 	send_list(ip);
 	//
 

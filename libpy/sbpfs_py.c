@@ -263,7 +263,7 @@ PyObject *wrap_sbp_closedir(PyObject *self, PyObject *args)
 	int dirfd;
 	if (!PyArg_ParseTuple(args, "i",&dirfd))
 		return NULL;
-	sbp_close(dirfd);
+	sbp_closedir(dirfd);
 	return Py_BuildValue("");
 }
 static PyMethodDef cpymodMethods[] =
