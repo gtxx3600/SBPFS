@@ -91,13 +91,13 @@ s32_t sbp_recv(s64_t sockfd, char** rec_buf, u64_t* rec_len)
 			u64_t received_len2 = 0;
 
 			while(missing_bytes){
-				printf("sub loop\n");
+				//printf("sub loop\n");
 				if ((numbytes = recv(sockfd, (*rec_buf) + received_len + received_len2, missing_bytes - received_len2, 0))
 						< 0) {
 					seterr(SOCKET_ERR,RECV);
 					goto error_exit2;
 				}
-				printf("advanced recev %lld length\n",numbytes);
+				//printf("advanced recev %lld length\n",numbytes);
 				received_len2 += numbytes;
 				if(received_len2 >= missing_bytes)
 				{

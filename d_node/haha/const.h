@@ -38,6 +38,10 @@
 #define AUTH_CODE				"Auth-code"
 #define FILE_DESC				"File-desc"
 
+
+#define ROOTPATH 				"/home/cxy/"
+#define BLOCKLISTPATH 			"/home/cxy/blocklist"
+
 #define HEADER_FLAG				"\r\n\r\n"
 #define MAX_USERNAME_LEN		16
 #define TRAN_USERNAME_LEN		16 + 7
@@ -52,13 +56,13 @@
 /* CLICK SIZE is 16MB (16*1024*1024)*/
 #define CLICK_SIZE				16777216
 
-typedef unsigned long long 		u64_t;
-typedef long long 				s64_t;
-typedef unsigned int			u32_t;
-typedef int						s32_t;
-typedef unsigned short			u16_t;
-typedef short					s16_t;
-typedef unsigned char			u8_t;
-typedef char					s8_t;
+typedef unsigned long long u64_t;
+typedef long long s64_t;
+typedef unsigned int u32_t;
+typedef int s32_t;
+typedef unsigned short u16_t;
+typedef short s16_t;
+typedef unsigned char u8_t;
+typedef char s8_t;
 
 #endif
